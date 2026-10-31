@@ -77,4 +77,30 @@ assert shared in env2.all_model_dirs()
 # Case 3: manual Browse override falls back to legacy/manual detection
 env3 = S.detect(S.Settings(base_path=str(docs)))
 assert env3.kind != "desktop2" and env3.base == docs and env3.models == docs / "models"
+# Case 4: unusual status + config folder with another name -> still found, with a report
+odd = W / "Roaming" / "SomeDesktopName"; odd.mkdir()
+shutil.move(str(cfg / "installations.json"), str(odd / "installations.json"))
+shutil.move(str(cfg / "settings.json"), str(odd / "settings.json"))
+recs = json.loads((odd / "installations.json").read_text())
+recs[0]["status"] = "ready"; recs[1]["status"] = "installing"
+(odd / "installations.json").write_text(json.dumps(recs))
+env4 = S.detect(S.Settings())
+print("case4 notes:", env4.notes)
+assert env4.kind == "desktop2" and env4.instance_id == "inst-1"
+assert any("skipped install 'ComfyUI-Test'" in n for n in env4.notes)
+
+# Case 5: hand-picked folders for a D:-style install -> its core version and its standalone uv
+dinst = W / "D" / "Naoko" / "ComfyUI"
+(dinst / "ComfyUI" / "comfy_extras").mkdir(parents=True)
+(dinst / "ComfyUI" / "custom_nodes").mkdir()
+(dinst / "ComfyUI" / "comfyui_version.py").write_text('__version__ = "0.44.0"\n')
+(dinst / "ComfyUI" / ".venv" / Path(exe).parent).mkdir(parents=True)
+(dinst / "ComfyUI" / ".venv" / exe).write_text("")
+duv = dinst / "standalone-env" / ("uv.exe" if IS_WIN else "bin/uv"); duv.parent.mkdir(parents=True); duv.write_text("")
+s5 = S.Settings(base_path=str(docs), folders={"custom_nodes": str(dinst / "ComfyUI" / "custom_nodes"),
+                                              "python": str(dinst / "ComfyUI" / ".venv" / exe)})
+env5 = S.detect(s5)
+print("case5:", env5.core, env5.core_version, env5.uv)
+assert env5.core == dinst / "ComfyUI" and env5.core_version == "0.44.0" and env5.uv == duv
+assert any("Browse" in n for n in env5.notes)
 print("ALL DESKTOP2 TESTS PASSED")

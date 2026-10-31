@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 APP_NAME = "StandRig Setup"
-VERSION = "2.0.0"
+VERSION = "2.0.1"
 CATALOG_URL = "https://raw.githubusercontent.com/tsukiyomi-naoko/StandRiggerWorkflow/main/installer/catalog.json"
 # Overridable for testing / mirrors
 GITHUB_API = os.environ.get("STANDRIG_GITHUB_API", "https://api.github.com")
@@ -175,13 +175,29 @@ def read_core_version(core: Path) -> str:
 DESKTOP2_DIR_NAMES = ("Comfy Desktop", "comfyui-desktop-2")
 
 
+DETECT_LOG: List[str] = []
+
+
+def desktop2_config_dirs() -> List[Path]:
+    """Folders holding Comfy Desktop's installations.json (known names first, then any app folder)."""
+    out: List[Path] = []
+    for root in (app_data_dir(), local_app_data_dir()):
+        for name in DESKTOP2_DIR_NAMES:
+            d = root / name
+            if (d / "installations.json").exists() and d not in out:
+                out.append(d)
+        try:
+            for d in sorted(root.iterdir()):
+                if d.is_dir() and (d / "installations.json").exists() and d not in out:
+                    out.append(d)
+        except Exception:
+            pass
+    return out
+
+
 def desktop2_config_dir() -> Optional[Path]:
-    """Folder holding Comfy Desktop's settings.json / installations.json."""
-    for name in DESKTOP2_DIR_NAMES:
-        d = app_data_dir() / name
-        if (d / "installations.json").exists():
-            return d
-    return None
+    dirs = desktop2_config_dirs()
+    return dirs[0] if dirs else None
 
 
 def _read_json(p: Path, default):
@@ -209,16 +225,36 @@ def _find_comfy_dir(install_path: Path) -> Path:
 
 def detect_desktop2(settings: Settings) -> Optional[ComfyEnv]:
     """Comfy Desktop (multi-install app: ComfyUI-Installs / ComfyUI-Shared)."""
-    cfg = desktop2_config_dir()
-    if cfg is None:
+    dirs = desktop2_config_dirs()
+    if not dirs:
+        DETECT_LOG.append("Comfy Desktop: no installations.json found under " +
+                          f"{app_data_dir()} or {local_app_data_dir()}")
         return None
-    records = _read_json(cfg / "installations.json", [])
-    dsettings = _read_json(cfg / "settings.json", {})
-    if not isinstance(records, list):
-        return None
-    usable = [r for r in records if isinstance(r, dict) and r.get("installPath")
-              and r.get("status") in (None, "installed", "updating")
-              and Path(r["installPath"]).exists()]
+    usable, cfg, dsettings = [], None, {}
+    for cand in dirs:
+        records = _read_json(cand / "installations.json", None)
+        if not isinstance(records, list):
+            DETECT_LOG.append(f"Comfy Desktop: {cand / 'installations.json'} is not a list, skipped")
+            continue
+        for r in records:
+            if not isinstance(r, dict):
+                continue
+            label = f"install '{r.get('name')}' ({r.get('installPath')}, status={r.get('status')}, " \
+                    f"adopted={r.get('adopted', False)})"
+            ip = Path(r["installPath"]) if r.get("installPath") else None
+            base_ok = (ip is not None and ip.exists()) or (r.get("adopted") and r.get("adoptedBaseDir")
+                                                           and Path(r["adoptedBaseDir"]).exists())
+            if r.get("status") in ("installing", "failed"):
+                DETECT_LOG.append(f"  skipped {label}: not finished installing")
+            elif not base_ok:
+                DETECT_LOG.append(f"  skipped {label}: folder not found")
+            else:
+                DETECT_LOG.append(f"  found {label}")
+                usable.append(r)
+        if usable:
+            cfg = cand
+            dsettings = _read_json(cand / "settings.json", {}) or {}
+            break
     if not usable:
         return None
     env = ComfyEnv(kind="desktop2")
@@ -267,6 +303,10 @@ FOLDER_KEYS = {
 
 def detect(settings: Settings) -> ComfyEnv:
     """Auto-detect, then apply the folder overrides from Settings → Folders."""
+    DETECT_LOG.clear()
+    if settings.get("base_path"):
+        DETECT_LOG.append(f"Using the folder chosen with Browse…: {settings['base_path']} "
+                          "(press Auto-detect to look for Comfy Desktop again)")
     env = _detect_auto(settings)
     ov = settings.get("folders") or {}
     for key, attr in (("custom_nodes", "custom_nodes_dir"), ("models_download", "model_download_dir"),
@@ -280,6 +320,24 @@ def detect(settings: Settings) -> ComfyEnv:
     if env.base is None and env.custom_nodes_dir is not None:
         env.base = env.custom_nodes_dir.parent
         env.kind = "custom"
+    # A hand-picked custom_nodes / python points at a specific ComfyUI: use its core version and its uv.
+    cands = []
+    if ov.get("custom_nodes"):
+        cands.append(Path(ov["custom_nodes"]).parent)
+    if ov.get("python"):
+        py = Path(ov["python"])
+        cands += [py.parents[2] if len(py.parents) > 2 else py.parent, py.parent]
+    for c in cands:
+        if (c / "comfy_extras").is_dir():
+            if env.core != c:
+                env.core, env.core_version = c, read_core_version(c)
+                DETECT_LOG.append(f"ComfyUI core taken from your folders: {c} ({env.core_version})")
+            if not ov.get("uv"):
+                uvp = c.parent / "standalone-env" / ("uv.exe" if IS_WIN else "bin/uv")
+                if uvp.exists():
+                    env.uv = uvp
+            break
+    env.notes = DETECT_LOG + env.notes
     return env
 
 
@@ -1891,6 +1949,9 @@ def run_gui() -> None:
 
     def refresh_env():
         env = detect(settings)
+        log("Detection: " + (env.kind if env.base else "nothing found"))
+        for n in env.notes:
+            log("  " + n)
         state["env"] = env
         state.pop("remote_status", None)
         base_var.set(str(env.base) if env.base else "")
