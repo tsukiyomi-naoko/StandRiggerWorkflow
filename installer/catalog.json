@@ -1,10 +1,10 @@
 {
   "catalog_version": 1,
   "installer": {
-    "version": "1.2.0",
+    "version": "2.0.0",
     "script_url": "https://raw.githubusercontent.com/tsukiyomi-naoko/StandRiggerWorkflow/main/installer/standrig_setup.py",
     "release_page": "https://github.com/tsukiyomi-naoko/StandRiggerWorkflow/releases",
-    "notes": "Workflows tab: what each workflow does and whether you have what it needs."
+    "notes": "General manager: all installed plugins (enable/disable, git update, reinstall packages), model library (scan, move, delete, download any URL), custom folders, and the .exe now updates itself."
   },
   "comfyui": {
     "required_core_files": [

@@ -34,12 +34,13 @@ import urllib.parse
 import urllib.request
 import webbrowser
 import zipfile
+import runpy
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 APP_NAME = "StandRig Setup"
-VERSION = "1.2.0"
+VERSION = "2.0.0"
 CATALOG_URL = "https://raw.githubusercontent.com/tsukiyomi-naoko/StandRiggerWorkflow/main/installer/catalog.json"
 # Overridable for testing / mirrors
 GITHUB_API = os.environ.get("STANDRIG_GITHUB_API", "https://api.github.com")
@@ -111,10 +112,13 @@ class ComfyEnv:
     instance_id: Optional[str] = None
     instance_name: Optional[str] = None
     instances: List[dict] = field(default_factory=list)  # Comfy Desktop 2: [{id, name, installPath}]
+    custom_nodes_dir: Optional[Path] = None     # user override
+    workflows_dir: Optional[Path] = None        # user override
+    overridden: List[str] = field(default_factory=list)
 
     @property
     def custom_nodes(self) -> Path:
-        return self.base / "custom_nodes"
+        return self.custom_nodes_dir or (self.base / "custom_nodes")
 
     @property
     def models(self) -> Path:
@@ -252,7 +256,34 @@ def detect_desktop2(settings: Settings) -> Optional[ComfyEnv]:
     return env
 
 
+FOLDER_KEYS = {
+    "custom_nodes": "Custom nodes folder",
+    "models_download": "Models download folder",
+    "workflows": "Workflows folder",
+    "python": "ComfyUI Python (python.exe)",
+    "uv": "uv (uv.exe)",
+}
+
+
 def detect(settings: Settings) -> ComfyEnv:
+    """Auto-detect, then apply the folder overrides from Settings → Folders."""
+    env = _detect_auto(settings)
+    ov = settings.get("folders") or {}
+    for key, attr in (("custom_nodes", "custom_nodes_dir"), ("models_download", "model_download_dir"),
+                      ("workflows", "workflows_dir"), ("python", "python"), ("uv", "uv")):
+        if ov.get(key):
+            setattr(env, attr, Path(ov[key]))
+            env.overridden.append(key)
+    for d in ov.get("extra_model_dirs") or []:
+        if d and Path(d) not in env.model_dirs:
+            env.model_dirs.append(Path(d))
+    if env.base is None and env.custom_nodes_dir is not None:
+        env.base = env.custom_nodes_dir.parent
+        env.kind = "custom"
+    return env
+
+
+def _detect_auto(settings: Settings) -> ComfyEnv:
     if not settings.get("base_path"):
         env2 = detect_desktop2(settings)
         if env2 is not None:
@@ -476,6 +507,79 @@ def parse_github_url(url: str) -> Optional[dict]:
             "description": f"Added from {url.strip()}"}
 
 
+MODEL_EXTS = {".ckpt", ".pt", ".pt2", ".bin", ".pth", ".safetensors", ".pkl", ".sft", ".gguf", ".onnx"}
+MODEL_TYPES = ["checkpoints", "diffusion_models", "unet", "loras", "vae", "text_encoders", "clip", "clip_vision",
+               "controlnet", "upscale_models", "embeddings", "background_removal", "sams", "ipadapter",
+               "style_models", "photomaker", "LLM"]
+
+
+def git_head(path: Path) -> Optional[str]:
+    """HEAD commit of a git checkout without needing git installed."""
+    try:
+        head = (path / ".git" / "HEAD").read_text(encoding="utf-8").strip()
+        if head.startswith("ref:"):
+            ref = head.split(" ", 1)[1].strip()
+            f = path / ".git" / ref
+            if f.exists():
+                return f.read_text(encoding="utf-8").strip()
+            packed = path / ".git" / "packed-refs"
+            if packed.exists():
+                for line in packed.read_text(encoding="utf-8").splitlines():
+                    if line.endswith(" " + ref):
+                        return line.split(" ")[0]
+            return None
+        return head
+    except Exception:
+        return None
+
+
+def normalize_model_url(url: str) -> str:
+    """Turn Hugging Face page links (…/blob/…) into direct download links (…/resolve/…)."""
+    url = url.strip()
+    m = re.match(r"^(https?://(?:www\.)?huggingface\.co/.+?)/blob/(.+)$", url)
+    if m:
+        return f"{m.group(1)}/resolve/{m.group(2)}"
+    return url
+
+
+def guess_filename(url: str, settings: Settings) -> str:
+    name = Path(urllib.parse.unquote(urllib.parse.urlparse(url).path)).name
+    if name and "." in name:
+        return name
+    try:  # ask the server (Content-Disposition)
+        with http_open(url, {**auth_for(url, settings), "Range": "bytes=0-0"}, timeout=20) as r:
+            cd = r.headers.get("Content-Disposition", "")
+            m = re.search(r'filename\*?=(?:UTF-8\'\')?"?([^";]+)', cd)
+            if m:
+                return urllib.parse.unquote(m.group(1))
+    except Exception:
+        pass
+    raise RuntimeError("could not tell the file name from the URL; type it in the File name box")
+
+
+def send_to_trash(path: Path) -> None:
+    """Delete to the Windows Recycle Bin when possible; plain delete elsewhere."""
+    if IS_WIN:
+        import ctypes
+        from ctypes import wintypes
+
+        class SHFILEOPSTRUCTW(ctypes.Structure):
+            _fields_ = [("hwnd", wintypes.HWND), ("wFunc", wintypes.UINT), ("pFrom", wintypes.LPCWSTR),
+                        ("pTo", wintypes.LPCWSTR), ("fFlags", ctypes.c_uint16), ("fAnyOperationsAborted", wintypes.BOOL),
+                        ("hNameMappings", ctypes.c_void_p), ("lpszProgressTitle", wintypes.LPCWSTR)]
+
+        op = SHFILEOPSTRUCTW(None, 3, str(path.resolve()) + "\0", None, 0x0040 | 0x0010 | 0x0004 | 0x0400,
+                             False, None, None)  # FO_DELETE, ALLOWUNDO|NOCONFIRMATION|SILENT|NOERRORUI
+        rc = ctypes.windll.shell32.SHFileOperationW(ctypes.byref(op))
+        if rc != 0:
+            raise RuntimeError(f"could not move {path} to the Recycle Bin (error {rc})")
+        return
+    if path.is_dir():
+        shutil.rmtree(path)
+    else:
+        path.unlink()
+
+
 # =================================================================== operations
 
 class Installer:
@@ -569,7 +673,7 @@ class Installer:
         return st
 
     def backup_dir(self) -> Path:
-        d = self.env.base / "standrig_backups"
+        d = self.env.custom_nodes.parent / "standrig_backups"
         d.mkdir(parents=True, exist_ok=True)
         return d
 
@@ -624,14 +728,19 @@ class Installer:
         return [str(py), "-m", "pip", *args]
 
     def install_requirements(self, p: dict) -> None:
-        req = self.plugin_dir(p) / "requirements.txt"
+        self.install_requirements_dir(self.plugin_dir(p), p["name"])
+
+    def install_requirements_dir(self, folder: Path, name: str, force_log: bool = False) -> None:
+        req = folder / "requirements.txt"
         if not req.exists():
+            if force_log:
+                self.log(f"[{name}] has no requirements.txt; nothing to install")
             return
         lines = [l.strip() for l in req.read_text(encoding="utf-8", errors="replace").splitlines()]
         if not any(l and not l.startswith("#") for l in lines):
             return
         cmd = self.pip_command(["install", "-r", str(req)])
-        self.log(f"[{p['name']}] installing Python requirements…")
+        self.log(f"[{name}] installing Python requirements…")
         self.run(cmd)
 
     def run(self, cmd: List[str]) -> None:
@@ -652,6 +761,175 @@ class Installer:
         if proc.wait() != 0:
             raise RuntimeError(f"command failed with exit code {proc.returncode}")
 
+    # ------------------------------------------------------ installed plugins
+    def scan_plugins(self) -> List[dict]:
+        """Everything in custom_nodes (enabled and disabled), merged with the catalog."""
+        cn = self.env.custom_nodes
+        cat = {p["folder"].lower(): p for p in all_plugins(self.catalog, self.settings)}
+        found: Dict[str, dict] = {}
+
+        def add(path: Path, enabled: bool):
+            folder = path.name[:-len(".disabled")] if path.name.endswith(".disabled") else path.name
+            if path.is_file() and not folder.endswith(".py"):
+                return
+            if folder in ("__pycache__",) or folder.startswith("."):
+                return
+            key = folder.lower()
+            if key in found and found[key]["enabled"]:
+                return  # an enabled copy wins over a disabled one
+            entry = dict(cat.get(key) or {"id": "local:" + folder, "name": folder.removesuffix(".py"),
+                                          "folder": folder, "description": ""})
+            kind = "file" if path.is_file() else "git" if (path / ".git").exists() else \
+                "managed" if (path / MARKER).exists() else "manual"
+            sha = None
+            if kind == "managed":
+                sha = _read_json(path / MARKER, {}).get("sha")
+            elif kind == "git":
+                sha = git_head(path)
+            entry.update(path=str(path), enabled=enabled, kind=kind, sha=sha, installed=True)
+            found[key] = entry
+
+        if cn.is_dir():
+            for child in sorted(cn.iterdir(), key=lambda x: x.name.lower()):
+                if child.name == ".disabled" and child.is_dir():  # ComfyUI-Manager's disabled folder
+                    for sub in child.iterdir():
+                        add(sub, False)
+                else:
+                    add(child, not child.name.endswith(".disabled"))
+        out = list(found.values())
+        for key, p in cat.items():
+            if key not in found:
+                out.append(dict(p, installed=False, enabled=False, kind="-", sha=None, path=None))
+        out.sort(key=lambda e: (not e.get("installed"), e.get("id", "").startswith("local:"), e["name"].lower()))
+        return out
+
+    @staticmethod
+    def describe_plugin(e: dict) -> str:
+        if not e.get("installed"):
+            return "Not installed"
+        state = "Enabled" if e["enabled"] else "Disabled"
+        kind = {"git": "git", "managed": "StandRig Setup", "manual": "manual copy", "file": "single file"}[e["kind"]]
+        return f"{state} · {kind}" + (f" · {e['sha'][:7]}" if e.get("sha") else "")
+
+    def set_enabled(self, e: dict, enabled: bool) -> None:
+        path = Path(e["path"])
+        if e["enabled"] == enabled:
+            return
+        if enabled:
+            target = self.env.custom_nodes / e["folder"]
+        else:
+            target = self.env.custom_nodes / (e["folder"] + ".disabled")
+        if target.exists():
+            raise RuntimeError(f"cannot rename: {target} already exists")
+        shutil.move(str(path), str(target))
+        self.log(f"[{e['name']}] {'enabled' if enabled else 'disabled'} ({target.name})")
+
+    def git_update(self, e: dict) -> None:
+        git = shutil.which("git")
+        if not git:
+            raise RuntimeError("git is not installed. Install Git for Windows, or reinstall the plugin from its "
+                               "GitHub URL so StandRig Setup can update it without git.")
+        self.run([git, "-C", e["path"], "pull", "--ff-only"])
+
+    def git_behind(self, e: dict) -> Optional[int]:
+        git = shutil.which("git")
+        if not git:
+            return None
+        try:
+            subprocess.run([git, "-C", e["path"], "fetch", "--quiet"], capture_output=True, timeout=60,
+                           creationflags=NO_WINDOW)
+            out = subprocess.run([git, "-C", e["path"], "rev-list", "--count", "HEAD..@{u}"], capture_output=True,
+                                 text=True, timeout=30, creationflags=NO_WINDOW)
+            return int(out.stdout.strip()) if out.returncode == 0 else None
+        except Exception:
+            return None
+
+    def update_plugin_entry(self, e: dict) -> None:
+        """Update one scanned plugin the right way for how it was installed."""
+        if e.get("installed") and e.get("kind") == "git":
+            self.git_update(e)
+            self.install_requirements_dir(Path(e["path"]), e["name"])
+        elif e.get("repo"):
+            self.install_plugin(e)
+        else:
+            raise RuntimeError(f"{e['name']}: unknown source. Add its GitHub URL in the box below to manage it.")
+
+    def remove_entry(self, e: dict) -> None:
+        path = Path(e["path"])
+        bk = self.backup_dir() / f"{path.name}-removed-{time.strftime('%Y%m%d-%H%M%S')}"
+        shutil.move(str(path), str(bk))
+        self.log(f"[{e['name']}] removed (kept a copy in {bk})")
+
+    # --------------------------------------------------------- model library
+    def scan_models(self) -> List[dict]:
+        rows, seen = [], set()
+        for root in self.env.all_model_dirs():
+            if not root.is_dir():
+                continue
+            for dirpath, dirnames, filenames in os.walk(root):
+                dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+                for fn in filenames:
+                    ext = os.path.splitext(fn)[1].lower()
+                    partial = fn.endswith(".part")
+                    if ext not in MODEL_EXTS and not partial:
+                        continue
+                    fp = Path(dirpath) / fn
+                    key = str(fp.resolve()).lower()
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    try:
+                        st = fp.stat()
+                    except OSError:
+                        continue
+                    rel = fp.relative_to(root)
+                    rows.append({"path": str(fp), "name": fn, "type": rel.parts[0] if len(rel.parts) > 1 else "(root)",
+                                 "root": str(root), "size": st.st_size, "mtime": st.st_mtime, "partial": partial})
+        rows.sort(key=lambda r: (r["type"].lower(), r["name"].lower()))
+        return rows
+
+    def delete_model(self, path: str) -> None:
+        send_to_trash(Path(path))
+        self.log(f"Deleted {path}" + (" (moved to the Recycle Bin)" if IS_WIN else ""))
+
+    def move_model(self, path: str, dest_root: Path) -> Path:
+        src = Path(path)
+        root = next((r for r in self.env.all_model_dirs() if str(src).lower().startswith(str(r).lower())), src.parent)
+        try:
+            rel = src.relative_to(root)
+        except ValueError:
+            rel = Path(src.name)
+        dest = dest_root / rel
+        if dest.exists():
+            raise RuntimeError(f"{dest} already exists")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        self.log(f"Moving {src} → {dest}")
+        shutil.move(str(src), str(dest))
+        return dest
+
+    def download_url(self, url: str, type_folder: str, dest_root: Path, filename: str = "") -> Path:
+        url = normalize_model_url(url)
+        name = filename.strip() or guess_filename(url, self.settings)
+        dest = dest_root / type_folder.strip().strip("/\\") / name
+        if dest.exists():
+            raise RuntimeError(f"{dest} already exists")
+        m = {"name": name, "url": url}
+        self.log(f"[{name}] downloading → {dest}")
+        t0, last = time.time(), [0.0]
+
+        def prog(done, total):
+            now = time.time()
+            if now - last[0] < 0.25 and done != total:
+                return
+            last[0] = now
+            speed = done / max(now - t0, 1e-3)
+            self.progress(name, done / total if total else -1,
+                          f"{fmt_size(done)} / {fmt_size(total or None)} at {fmt_size(speed)}/s")
+
+        download_file(m["url"], dest, self.settings, prog, self.cancel)
+        self.log(f"[{name}] done ({fmt_size(dest.stat().st_size)})")
+        return dest
+
     # ------------------------------------------------------------- workflows
     def chosen_qwen_file(self) -> Optional[str]:
         mv = self.catalog.get("model_variants", {}).get("qwen_edit")
@@ -668,7 +946,7 @@ class Installer:
             return 0
         sha = self.latest_sha(wf["repo"], wf.get("ref") or "HEAD")
         zf = self.fetch_repo_zip(wf["repo"], sha)
-        dest = self.env.base / wf["dest"]
+        dest = self.workflows_dest()
         dest.mkdir(parents=True, exist_ok=True)
         root = zf.namelist()[0].split("/")[0] + "/"
         prefix = root + wf["subdir"].strip("/") + "/"
@@ -689,6 +967,8 @@ class Installer:
         return n
 
     def workflows_dest(self) -> Optional[Path]:
+        if self.env.workflows_dir:
+            return self.env.workflows_dir
         wf = self.catalog.get("workflows")
         return self.env.base / wf["dest"] if wf and self.env.base else None
 
@@ -790,8 +1070,13 @@ class Installer:
         new = http_text(url, timeout=60)
         if "APP_NAME" not in new or "class Installer" not in new:
             raise RuntimeError("downloaded file does not look like StandRig Setup")
-        me = Path(__file__).resolve()
-        me.with_suffix(".py.bak").write_text(me.read_text(encoding="utf-8"), encoding="utf-8")
+        if getattr(sys, "frozen", False):
+            me = tool_dir() / "app" / "standrig_setup.py"   # the .exe runs this newer copy on next start
+            me.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            me = Path(__file__).resolve()
+        if me.exists():
+            me.with_suffix(".py.bak").write_text(me.read_text(encoding="utf-8"), encoding="utf-8")
         me.write_text(new, encoding="utf-8")
         for name in ("catalog.json",):
             try:
@@ -1114,50 +1399,88 @@ def run_gui() -> None:
     # ----------------------------------------------------------- tab: plugins
     t_plug = ttk.Frame(nb, padding=10)
     nb.add(t_plug, text="  Plugins  ")
-    cols = ("name", "status", "required", "description")
-    ptree = ttk.Treeview(t_plug, columns=cols, show="headings", selectmode="extended", height=10)
-    for c, w in zip(cols, (220, 250, 80, 480)):
+    ttk.Label(t_plug, wraplength=980, justify="left", text=(
+        "Everything in your custom_nodes folder, however it was installed, plus the catalog's plugins. "
+        "Disabled = renamed to '<name>.disabled' (ComfyUI skips those; ComfyUI-Manager's .disabled folder is "
+        "shown too). Restart ComfyUI after changes.")).pack(anchor="w", pady=(0, 6))
+    pf = ttk.Frame(t_plug)
+    pf.pack(fill="both", expand=True)
+    cols = ("name", "status", "folder", "description")
+    ptree = ttk.Treeview(pf, columns=cols, show="headings", selectmode="extended", height=12)
+    for c, w in zip(cols, (210, 260, 220, 360)):
         ptree.heading(c, text=c.capitalize())
         ptree.column(c, width=w, anchor="w")
-    ptree.pack(fill="both", expand=True)
+    psb = ttk.Scrollbar(pf, orient="vertical", command=ptree.yview)
+    ptree.configure(yscrollcommand=psb.set)
+    ptree.pack(side="left", fill="both", expand=True)
+    psb.pack(side="right", fill="y")
     prow = ttk.Frame(t_plug)
     prow.pack(fill="x", pady=6)
+    plugin_rows: Dict[str, dict] = {}
 
-    def selected_plugins() -> List[dict]:
-        ids = set(ptree.selection())
-        return [p for p in all_plugins(state["catalog"], settings) if p["id"] in ids]
+    def selected_entries() -> List[dict]:
+        return [plugin_rows[i] for i in ptree.selection() if i in plugin_rows]
+
+    def need_selection() -> Optional[List[dict]]:
+        sel = selected_entries()
+        if not sel:
+            messagebox.showinfo(APP_NAME, "Select one or more plugins in the list.")
+            return None
+        return sel
 
     def plug_check_updates():
         def fn(i: Installer):
-            res = {p["id"]: i.plugin_status(p, check_remote=True)["state"]
-                   for p in all_plugins(state["catalog"], settings)}
+            res = {}
+            for e in i.scan_plugins():
+                if e.get("installed") and e["kind"] == "git":
+                    n = i.git_behind(e)
+                    res[e["id"]] = (f"Update available ({n} commits)" if n else "Up to date") if n is not None \
+                        else "git not available"
+                elif e.get("repo"):
+                    st = i.plugin_status(e, check_remote=True)["state"]
+                    res[e["id"]] = st
             state["remote_status"] = res
+            i.log("Update check finished.")
         run_task("Checking for plugin updates", fn)
 
     def plug_install():
-        sel = selected_plugins()
-        if not sel:
-            messagebox.showinfo(APP_NAME, "Select one or more plugins in the list.")
-            return
-        run_task("Installing plugins", lambda i: [i.install_plugin(p) for p in sel], needs_closed=True)
+        sel = need_selection()
+        if sel:
+            run_task("Installing / updating plugins", lambda i: [
+                i.update_plugin_entry(e) if e.get("installed") else i.install_plugin(e) for e in sel],
+                needs_closed=True)
+
+    def plug_enable(flag: bool):
+        sel = need_selection()
+        if sel:
+            run_task(("Enabling" if flag else "Disabling") + " plugins",
+                     lambda i: [i.set_enabled(e, flag) for e in sel if e.get("installed")])
+
+    def plug_reqs():
+        sel = need_selection()
+        if sel:
+            run_task("Reinstalling Python packages", lambda i: [
+                i.install_requirements_dir(Path(e["path"]), e["name"], force_log=True)
+                for e in sel if e.get("installed") and e["kind"] != "file"], needs_closed=True)
 
     def plug_remove():
-        sel = selected_plugins()
-        if sel and messagebox.askyesno(APP_NAME, "Remove " + ", ".join(p["name"] for p in sel) +
-                                       "?\nA copy is kept in standrig_backups."):
-            run_task("Removing plugins", lambda i: [i.remove_plugin(p) for p in sel])
+        sel = [e for e in (need_selection() or []) if e.get("installed")]
+        if sel and messagebox.askyesno(APP_NAME, "Remove " + ", ".join(e["name"] for e in sel) +
+                                       "?\nA copy is kept in the standrig_backups folder."):
+            run_task("Removing plugins", lambda i: [i.remove_entry(e) for e in sel])
 
     def plug_open():
-        sel = selected_plugins()
-        if sel:
-            open_path(state["env"].custom_nodes / sel[0]["folder"])
+        sel = selected_entries()
+        if sel and sel[0].get("path"):
+            open_path(Path(sel[0]["path"]))
         elif state["env"].base:
             open_path(state["env"].custom_nodes)
 
-    ttk.Button(prow, text="Check for updates", command=plug_check_updates).pack(side="left")
-    ttk.Button(prow, text="Install / update selected", command=plug_install).pack(side="left", padx=6)
-    ttk.Button(prow, text="Remove selected", command=plug_remove).pack(side="left")
-    ttk.Button(prow, text="Open folder", command=plug_open).pack(side="left", padx=6)
+    for text, cmd in (("Check for updates", plug_check_updates), ("Install / update", plug_install),
+                      ("Enable", lambda: plug_enable(True)), ("Disable", lambda: plug_enable(False)),
+                      ("Reinstall Python packages", plug_reqs), ("Remove", plug_remove),
+                      ("Open folder", plug_open), ("Rescan", lambda: refresh_tables())):
+        ttk.Button(prow, text=text, command=cmd).pack(side="left", padx=(0, 6))
     addrow = ttk.LabelFrame(t_plug, text="Add any custom node from GitHub", padding=8)
     addrow.pack(fill="x")
     url_var = tk.StringVar()
@@ -1173,7 +1496,7 @@ def run_gui() -> None:
         settings.save()
         url_var.set("")
         refresh_tables()
-        log(f"Added {p['repo']} to the plugin list; select it and press Install.")
+        log(f"Added {p['repo']} to the plugin list; select it and press Install / update.")
 
     def forget_custom():
         ids = set(ptree.selection())
@@ -1230,6 +1553,162 @@ def run_gui() -> None:
         "already exists in any of your model folders counts as installed and is not downloaded again. Interrupted "
         "downloads are kept as .part files and resume. See-through downloads its own models the first time it runs.")).pack(anchor="w")
 
+    # ----------------------------------------------------- tab: model library
+    t_lib = ttk.Frame(nb, padding=10)
+    nb.add(t_lib, text="  Model library  ")
+    lib_top = ttk.Frame(t_lib)
+    lib_top.pack(fill="x")
+    lib_sum = tk.StringVar(value="Press Rescan to list every model file in your model folders.")
+    ttk.Label(lib_top, textvariable=lib_sum).pack(side="left")
+    filt_var = tk.StringVar()
+    fe = ttk.Entry(lib_top, textvariable=filt_var, width=28)
+    fe.pack(side="right")
+    ttk.Label(lib_top, text="Filter:").pack(side="right", padx=4)
+    lf = ttk.Frame(t_lib)
+    lf.pack(fill="both", expand=True, pady=6)
+    lcols = ("name", "type", "size", "modified", "root")
+    ltree = ttk.Treeview(lf, columns=lcols, show="headings", selectmode="extended", height=11)
+    for c, w in zip(lcols, (340, 140, 90, 130, 330)):
+        ltree.heading(c, text=c.capitalize(), command=lambda c=c: sort_lib(c))
+        ltree.column(c, width=w, anchor="w")
+    lsb = ttk.Scrollbar(lf, orient="vertical", command=ltree.yview)
+    ltree.configure(yscrollcommand=lsb.set)
+    ltree.pack(side="left", fill="both", expand=True)
+    lsb.pack(side="right", fill="y")
+    lib_rows: List[dict] = []
+    lib_sort = {"key": "type", "rev": False}
+
+    def fill_lib():
+        q = filt_var.get().strip().lower()
+        ltree.delete(*ltree.get_children())
+        key = lib_sort["key"]
+        rows = sorted(lib_rows, key=lambda r: (r["size"] if key == "size" else r["mtime"] if key == "modified"
+                                               else str(r.get(key, "")).lower()), reverse=lib_sort["rev"])
+        shown = tot = 0
+        for r in rows:
+            if q and q not in r["name"].lower() and q not in r["type"].lower():
+                continue
+            shown += 1
+            tot += r["size"]
+            ltree.insert("", "end", iid=r["path"], values=(
+                r["name"] + ("  (partial)" if r["partial"] else ""), r["type"], fmt_size(r["size"]),
+                time.strftime("%Y-%m-%d", time.localtime(r["mtime"])), r["root"]))
+        all_tot = sum(r["size"] for r in lib_rows)
+        lib_sum.set(f"{len(lib_rows)} files, {fmt_size(all_tot)} total" +
+                    (f"  ·  showing {shown} ({fmt_size(tot)})" if q else ""))
+
+    def sort_lib(col):
+        lib_sort["rev"] = not lib_sort["rev"] if lib_sort["key"] == col else col in ("size", "modified")
+        lib_sort["key"] = col
+        fill_lib()
+
+    filt_var.trace_add("write", lambda *_: fill_lib())
+
+    def on_tab(_e=None):
+        try:
+            if nb.select() == str(t_lib) and not lib_rows and not state["busy"] and state["env"].base:
+                lib_rescan()
+        except Exception:
+            pass
+
+    nb.bind("<<NotebookTabChanged>>", on_tab)
+
+    def lib_rescan():
+        def fn(i: Installer):
+            rows = i.scan_models()
+            lib_rows[:] = rows
+            i.log(f"Model library: {len(rows)} files, {fmt_size(sum(r['size'] for r in rows))} in "
+                  f"{len(i.env.all_model_dirs())} folders")
+        run_task("Scanning model folders", fn, after=fill_lib)
+
+    def lib_selected() -> List[str]:
+        sel = list(ltree.selection())
+        if not sel:
+            messagebox.showinfo(APP_NAME, "Select one or more model files.")
+        return sel
+
+    def lib_delete():
+        sel = lib_selected()
+        if not sel:
+            return
+        size = sum(r["size"] for r in lib_rows if r["path"] in sel)
+        where = "to the Recycle Bin" if IS_WIN else "permanently"
+        if messagebox.askyesno(APP_NAME, f"Delete {len(sel)} file(s) ({fmt_size(size)}) {where}?\n\n" +
+                               "\n".join(Path(x).name for x in sel[:12]) + ("\n…" if len(sel) > 12 else "")):
+            run_task("Deleting models", lambda i: [i.delete_model(x) for x in sel], after=lib_rescan)
+
+    def pick_root(title: str) -> Optional[Path]:
+        roots = [str(d) for d in state["env"].all_model_dirs()]
+        win = tk.Toplevel(root)
+        win.title(title)
+        win.transient(root)
+        ttk.Label(win, text="Destination models folder (the type subfolder is kept):", padding=10).pack(anchor="w")
+        var = tk.StringVar(value=roots[0] if roots else "")
+        cb = ttk.Combobox(win, textvariable=var, values=roots, width=80)
+        cb.pack(padx=10, fill="x")
+        res: Dict[str, Optional[str]] = {"v": None}
+
+        def browse_dest():
+            d = filedialog.askdirectory(parent=win)
+            if d:
+                var.set(d)
+
+        def ok():
+            res["v"] = var.get().strip() or None
+            win.destroy()
+
+        row = ttk.Frame(win, padding=10)
+        row.pack(fill="x")
+        ttk.Button(row, text="Browse…", command=browse_dest).pack(side="left")
+        ttk.Button(row, text="Cancel", command=win.destroy).pack(side="right")
+        ttk.Button(row, text="Move here", command=ok).pack(side="right", padx=6)
+        win.grab_set()
+        root.wait_window(win)
+        return Path(res["v"]) if res["v"] else None
+
+    def lib_move():
+        sel = lib_selected()
+        if not sel:
+            return
+        dest = pick_root("Move models")
+        if dest:
+            run_task("Moving models", lambda i: [i.move_model(x, dest) for x in sel], after=lib_rescan)
+
+    def lib_open():
+        sel = list(ltree.selection())
+        open_path(Path(sel[0]).parent if sel else state["env"].models)
+
+    lrow = ttk.Frame(t_lib)
+    lrow.pack(fill="x")
+    for text, cmd in (("Rescan", lib_rescan), ("Delete", lib_delete), ("Move to…", lib_move),
+                      ("Open folder", lib_open)):
+        ttk.Button(lrow, text=text, command=cmd).pack(side="left", padx=(0, 6))
+
+    dl = ttk.LabelFrame(t_lib, text="Download any model (Hugging Face page or direct link)", padding=8)
+    dl.pack(fill="x", pady=(8, 0))
+    dl_url, dl_type, dl_root, dl_name = tk.StringVar(), tk.StringVar(value="loras"), tk.StringVar(), tk.StringVar()
+    ttk.Label(dl, text="URL").grid(row=0, column=0, sticky="w")
+    ttk.Entry(dl, textvariable=dl_url).grid(row=0, column=1, columnspan=5, sticky="we", padx=6, pady=2)
+    ttk.Label(dl, text="Type folder").grid(row=1, column=0, sticky="w")
+    ttk.Combobox(dl, textvariable=dl_type, values=MODEL_TYPES, width=20).grid(row=1, column=1, sticky="w", padx=6)
+    ttk.Label(dl, text="Into").grid(row=1, column=2, sticky="e")
+    dl_root_box = ttk.Combobox(dl, textvariable=dl_root, width=55)
+    dl_root_box.grid(row=1, column=3, sticky="we", padx=6)
+    ttk.Label(dl, text="File name (optional)").grid(row=1, column=4, sticky="e")
+    ttk.Entry(dl, textvariable=dl_name, width=26).grid(row=1, column=5, sticky="we", padx=6)
+    dl.columnconfigure(3, weight=1)
+
+    def dl_go():
+        url = dl_url.get().strip()
+        if not re.match(r"^https?://", url):
+            messagebox.showerror(APP_NAME, "Paste a full https:// link to the model file.")
+            return
+        dest = Path(dl_root.get().strip() or state["env"].models)
+        tf, fn_ = dl_type.get().strip() or "checkpoints", dl_name.get()
+        run_task("Downloading model", lambda i: i.download_url(url, tf, dest, fn_), after=lib_rescan)
+
+    ttk.Button(dl, text="Download", command=dl_go).grid(row=0, column=6, rowspan=2, padx=(6, 0))
+
     # ---------------------------------------------------------- tab: settings
     t_set = ttk.Frame(nb, padding=14)
     nb.add(t_set, text="  Settings  ")
@@ -1260,6 +1739,67 @@ def run_gui() -> None:
         refresh_env()
 
     ttk.Button(t_set, text="Save settings", command=save_settings).pack(anchor="w", pady=8)
+    t_fold = ttk.Frame(nb, padding=14)
+    nb.insert(t_set, t_fold, text="  Folders  ")
+    ttk.Label(t_fold, wraplength=980, justify="left", text=(
+        "Point the tool at any folder layout. Leave a box empty to use what was detected (shown in grey). "
+        "Saved on this PC, so changes apply immediately without a new version of the tool.")).pack(anchor="w")
+    fold = ttk.LabelFrame(t_fold, text="Folders", padding=10)
+    fold.pack(fill="x", pady=8)
+    fvars: Dict[str, tk.StringVar] = {}
+    fhints: Dict[str, tk.StringVar] = {}
+    ov0 = settings.get("folders") or {}
+    for r, (key, label) in enumerate(FOLDER_KEYS.items()):
+        ttk.Label(fold, text=label).grid(row=2 * r, column=0, sticky="w", pady=(4, 0))
+        v = tk.StringVar(value=ov0.get(key, ""))
+        ttk.Entry(fold, textvariable=v).grid(row=2 * r, column=1, sticky="we", padx=6, pady=(4, 0))
+        is_file = key in ("python", "uv")
+
+        def browse_f(v=v, is_file=is_file):
+            d = filedialog.askopenfilename() if is_file else filedialog.askdirectory()
+            if d:
+                v.set(d)
+
+        ttk.Button(fold, text="Browse…", command=browse_f).grid(row=2 * r, column=2, pady=(4, 0))
+        h = tk.StringVar()
+        ttk.Label(fold, textvariable=h, foreground="#666").grid(row=2 * r + 1, column=1, sticky="w", padx=6)
+        fvars[key], fhints[key] = v, h
+    ttk.Label(fold, text="Extra model folders (one per line)").grid(row=20, column=0, sticky="nw", pady=(6, 0))
+    extra_txt = tk.Text(fold, height=3, width=60, font=("Consolas", 9))
+    extra_txt.grid(row=20, column=1, sticky="we", padx=6, pady=(6, 0))
+    extra_txt.insert("1.0", "\n".join(ov0.get("extra_model_dirs") or []))
+
+    def add_extra():
+        d = filedialog.askdirectory()
+        if d:
+            cur = extra_txt.get("1.0", "end").strip()
+            extra_txt.delete("1.0", "end")
+            extra_txt.insert("1.0", (cur + "\n" if cur else "") + d)
+
+    ttk.Button(fold, text="Add…", command=add_extra).grid(row=20, column=2, sticky="n", pady=(6, 0))
+    fold.columnconfigure(1, weight=1)
+
+    def save_folders():
+        ov = {k: v.get().strip() for k, v in fvars.items() if v.get().strip()}
+        extras = [l.strip() for l in extra_txt.get("1.0", "end").splitlines() if l.strip()]
+        if extras:
+            ov["extra_model_dirs"] = extras
+        settings["folders"] = ov
+        settings.save()
+        log("Folders saved." + (" Using: " + ", ".join(ov) if ov else " Using auto-detection."))
+        refresh_env()
+
+    def reset_folders():
+        for v in fvars.values():
+            v.set("")
+        extra_txt.delete("1.0", "end")
+        save_folders()
+
+    frow = ttk.Frame(fold)
+    frow.grid(row=21, column=1, sticky="w", padx=6, pady=(8, 0))
+    ttk.Button(frow, text="Save folders", command=save_folders).pack(side="left")
+    ttk.Button(frow, text="Reset to auto-detect", command=reset_folders).pack(side="left", padx=6)
+    state["folder_hints"] = fhints
     upd = ttk.LabelFrame(t_set, text="This tool", padding=10)
     upd.pack(fill="x", pady=8)
     tool_var = tk.StringVar(value=f"Version {VERSION}")
@@ -1271,13 +1811,14 @@ def run_gui() -> None:
         if not latest:
             messagebox.showinfo(APP_NAME, f"You have the latest version ({VERSION}).")
             return
-        if getattr(sys, "frozen", False):
-            webbrowser.open(state["catalog"]["installer"].get("release_page", ""))
-            return
         try:
-            inst.self_update()
+            target = inst.self_update()
             messagebox.showinfo(APP_NAME, f"Updated to {latest}. The tool will now restart.")
-            os.execv(sys.executable, [sys.executable, str(Path(__file__).resolve())])
+            if getattr(sys, "frozen", False):
+                subprocess.Popen([sys.executable], close_fds=True)
+                root.destroy()
+                sys.exit(0)
+            os.execv(sys.executable, [sys.executable, str(target)])
         except Exception as e:
             messagebox.showerror(APP_NAME, f"Update failed: {e}")
 
@@ -1294,13 +1835,32 @@ def run_gui() -> None:
         remote = state.get("remote_status", {})
         sel = ptree.selection()
         ptree.delete(*ptree.get_children())
-        for p in all_plugins(cat, settings):
-            st = remote.get(p["id"]) or (inst.plugin_status(p)["state"] if env.base else "-")
-            ptree.insert("", "end", iid=p["id"], values=(p["name"], st, "yes" if p.get("required") else "optional",
-                                                          p.get("description", "")))
-        for s in sel:
-            if ptree.exists(s):
-                ptree.selection_add(s)
+        plugin_rows.clear()
+        if env.base:
+            for e in inst.scan_plugins():
+                plugin_rows[e["id"]] = e
+                st = remote.get(e["id"]) or inst.describe_plugin(e)
+                if remote.get(e["id"]) and e.get("installed") and not e["enabled"]:
+                    st = "Disabled · " + st
+                ptree.insert("", "end", iid=e["id"], values=(
+                    e["name"] + ("  ★" if e.get("required") else ""), st,
+                    Path(e["path"]).name if e.get("path") else e["folder"], e.get("description", "")))
+        for x in sel:
+            if ptree.exists(x):
+                ptree.selection_add(x)
+        roots = [str(d) for d in env.all_model_dirs()] if env.base else []
+        dl_root_box["values"] = roots
+        if roots and not dl_root.get():
+            dl_root.set(roots[0])
+        auto = detect(Settings({k: v for k, v in settings.items() if k != "folders"})) if env.base else None
+        hints = state.get("folder_hints") or {}
+        if auto is not None:
+            wf_auto = (auto.base / cat.get("workflows", {}).get("dest", "")) if auto.base else None
+            for key, val in (("custom_nodes", auto.custom_nodes if auto.base else None),
+                             ("models_download", auto.models if auto.base else None), ("workflows", wf_auto),
+                             ("python", auto.python), ("uv", auto.uv)):
+                if key in hints:
+                    hints[key].set(f"detected: {val}" if val else "detected: (not found)")
         wsel = wtree.selection()
         wtree.delete(*wtree.get_children())
         for w in cat.get("workflow_list", []):
@@ -1337,7 +1897,9 @@ def run_gui() -> None:
         parts = []
         if env.base:
             parts.append({"desktop2": "Comfy Desktop", "desktop": "ComfyUI Desktop (legacy)", "portable": "Portable",
-                          "manual": "Manual install"}.get(env.kind, env.kind) +
+                          "manual": "Manual install", "custom": "Custom folders",
+                          "unknown": "ComfyUI folder"}.get(env.kind, env.kind) +
+                         (" (folders customised)" if env.overridden else "") +
                          (f" · install '{env.instance_name}'" if env.instance_name else ""))
             parts.append(f"ComfyUI core {env.core_version}" if env.core else "core: not found")
             parts.append("Python: found" if env.python else "Python: not found")
@@ -1430,7 +1992,27 @@ def run_cli(argv: List[str]) -> int:
     return 0
 
 
+def _run_newer_script_if_any() -> bool:
+    """For the .exe: if Settings → Check for tool update saved a newer script, run that instead."""
+    if not getattr(sys, "frozen", False) or os.environ.get("STANDRIG_NO_REDIRECT"):
+        return False
+    script = tool_dir() / "app" / "standrig_setup.py"
+    if not script.exists():
+        return False
+    m = re.search(r'^VERSION = "([^"]+)"', script.read_text(encoding="utf-8", errors="replace"), re.M)
+    if not m or version_tuple(m.group(1)) <= version_tuple(VERSION):
+        return False
+    os.environ["STANDRIG_NO_REDIRECT"] = "1"
+    try:
+        runpy.run_path(str(script), run_name="__main__")
+    except SystemExit:
+        pass
+    return True
+
+
 if __name__ == "__main__":
+    if _run_newer_script_if_any():
+        sys.exit(0)
     if len(sys.argv) > 1:
         sys.exit(run_cli(sys.argv[1:]))
     run_gui()

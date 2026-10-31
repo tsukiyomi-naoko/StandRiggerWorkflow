@@ -19,7 +19,7 @@ jobs:
       - name: Build one-file exe
         run: |
           pip install pyinstaller==6.11.1
-          pyinstaller --noconfirm --onefile --windowed --name StandRigSetup --add-data "installer/catalog.json;." installer/standrig_setup.py
+          pyinstaller --noconfirm --onefile --windowed --name StandRigSetup --add-data "installer/catalog.json;." --collect-submodules tkinter --hidden-import ctypes.wintypes --hidden-import runpy --hidden-import csv --hidden-import sqlite3 --hidden-import shlex --hidden-import uuid --hidden-import platform --hidden-import difflib --hidden-import base64 --hidden-import email.utils --hidden-import concurrent.futures installer/standrig_setup.py
       - uses: actions/upload-artifact@v4
         with:
           name: StandRigSetup

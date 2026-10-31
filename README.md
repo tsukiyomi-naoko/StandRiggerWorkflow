@@ -45,9 +45,12 @@ What the tool does:
 | Tab | |
 | --- | --- |
 | **Quick setup** | One click: installs StandRig Bridge and ComfyUI-See-through (and their Python packages, through ComfyUI Desktop's bundled `uv`), copies the workflows into the Workflows sidebar, and downloads all models. Lets you choose the INT8 (smaller) or BF16 Qwen weights; the workflows are switched to match. |
-| **Plugins** | Install, update (with update check), or remove any plugin from the catalog. Paste any GitHub URL to add other custom nodes. Old versions are kept in `<ComfyUI>\standrig_backups`. |
-| **Models** | Real download sizes, per-model status, resumable downloads with progress and ETA. An optional Hugging Face token can be set in Settings. |
-| **Settings** | Tokens, folder overrides, and **Check for tool update** (the tool updates itself). |
+| **Workflows** | What each workflow makes, whether you have everything it needs, and a button that installs only what a chosen workflow is missing. |
+| **Plugins** | **Everything** in `custom_nodes`, however it was installed (git, ComfyUI-Manager, this tool, manual copy, single `.py` file), plus the catalog's plugins. Enable/disable (`<name>.disabled`, and ComfyUI-Manager's `.disabled` folder), update (`git pull` for git installs, archive download otherwise), check for updates, reinstall a plugin's Python packages, remove (a copy is kept in `standrig_backups`), or add any GitHub URL. |
+| **Models** | The StandRig models: real sizes, status, resumable downloads with progress and ETA. A model already present in any of your model folders is never downloaded twice. |
+| **Model library** | Every model file in all your model folders: name, type, size, date, total disk usage, filter and sort. Delete (to the Recycle Bin), move to another models folder, or download **any** model from a Hugging Face page or direct link into the folder you choose (resumable). |
+| **Folders** | Override any detected path: custom nodes, models download folder, extra model folders, workflows folder, Python, uv. Leave a box empty to keep auto-detection. |
+| **Settings** | Hugging Face / GitHub tokens and **Check for tool update**. Both the script and the `.exe` update themselves; the `.exe` downloads the new version and runs it, so it doesn't need to be re-downloaded. |
 
 The plugin and model lists come from [`installer/catalog.json`](installer/catalog.json) online, so new plugins, models
 and tool versions appear without reinstalling anything. A command-line mode exists too: `python installer/standrig_setup.py --help`.
