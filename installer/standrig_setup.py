@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 APP_NAME = "StandRig Setup"
-VERSION = "2.1.0"
+VERSION = "2.1.1"
 CATALOG_URL = "https://raw.githubusercontent.com/tsukiyomi-naoko/StandRiggerWorkflow/main/installer/catalog.json"
 # Overridable for testing / mirrors
 GITHUB_API = os.environ.get("STANDRIG_GITHUB_API", "https://api.github.com")
@@ -271,7 +271,7 @@ def detect_desktop2(settings: Settings) -> Optional[ComfyEnv]:
         env.base = base
         env.python = Path(rec["adoptedPythonPath"]) if rec.get("adoptedPythonPath") else None
         uv = base / ".venv" / ("Scripts/uv.exe" if IS_WIN else "bin/uv")
-        env.notes.append("adopted install (data in the legacy ComfyUI folder)")
+        env.notes.append(f"Comfy Desktop runs this install with its data folder at {base}")
     else:
         base = _find_comfy_dir(ip)
         env.base = base
@@ -2248,7 +2248,7 @@ def run_gui() -> None:
         base_var.set(str(env.base) if env.base else "")
         parts = []
         if env.base:
-            parts.append({"desktop2": "Comfy Desktop", "desktop": "ComfyUI Desktop (legacy)", "portable": "Portable",
+            parts.append({"desktop2": "Comfy Desktop", "desktop": "ComfyUI folder", "portable": "Portable",
                           "manual": "Manual install", "custom": "Custom folders",
                           "unknown": "ComfyUI folder"}.get(env.kind, env.kind) +
                          (" (folders customised)" if env.overridden else "") +

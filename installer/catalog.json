@@ -1,7 +1,7 @@
 {
   "catalog_version": 1,
   "installer": {
-    "version": "2.1.0",
+    "version": "2.1.1",
     "script_url": "https://raw.githubusercontent.com/tsukiyomi-naoko/StandRiggerWorkflow/main/installer/standrig_setup.py",
     "release_page": "https://github.com/tsukiyomi-naoko/StandRiggerWorkflow/releases",
     "notes": "New 'Move data' tab: move ComfyUI's models/custom_nodes/user/input/output to another drive with folder junctions; Auto-detect and Reset now clear the Browse choice; warning when the chosen folder is not the one ComfyUI uses."
