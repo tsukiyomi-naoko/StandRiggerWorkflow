@@ -25,6 +25,27 @@ picture ─► BiRefNet cutout ─► (optional) Qwen-Edit "normalize to front A
                                                                                     └─► reference pack + manifest
 ```
 
+## Easy install (Windows, ComfyUI Desktop): StandRig Setup
+
+1. Download this repository (**Code → Download ZIP**) and unzip it anywhere.
+2. Double-click **`StandRigSetup.bat`**. It uses ComfyUI Desktop's own Python, so nothing else needs installing.
+   Alternatively, get `StandRigSetup.exe` from the [Releases](https://github.com/tsukiyomi-naoko/StandRiggerWorkflow/releases) page.
+3. Check that the tool found your ComfyUI folder (the one with `models` and `custom_nodes`; change it with **Browse…** if not).
+   **Close ComfyUI**, then click **Install / update everything**.
+4. Restart ComfyUI and open the Workflows sidebar (**W**) → **StandRig** → `standrig_full_pipeline`.
+
+What the tool does:
+
+| Tab | |
+| --- | --- |
+| **Quick setup** | One click: installs StandRig Bridge and ComfyUI-See-through (and their Python packages, through ComfyUI Desktop's bundled `uv`), copies the workflows into the Workflows sidebar, and downloads all models. Lets you choose the INT8 (smaller) or BF16 Qwen weights; the workflows are switched to match. |
+| **Plugins** | Install, update (with update check), or remove any plugin from the catalog. Paste any GitHub URL to add other custom nodes. Old versions are kept in `<ComfyUI>\standrig_backups`. |
+| **Models** | Real download sizes, per-model status, resumable downloads with progress and ETA. An optional Hugging Face token can be set in Settings. |
+| **Settings** | Tokens, folder overrides, and **Check for tool update** (the tool updates itself). |
+
+The plugin and model lists come from [`installer/catalog.json`](installer/catalog.json) online, so new plugins, models
+and tool versions appear without reinstalling anything. A command-line mode exists too: `python installer/standrig_setup.py --help`.
+
 ## Workflows (`workflows/`)
 
 | File | What it does | Extra node pack |
@@ -37,7 +58,7 @@ picture ─► BiRefNet cutout ─► (optional) Qwen-Edit "normalize to front A
 
 `workflows/api/*.api.json` are the same graphs in API format, for scripting and `POST /prompt`.
 
-## Setup
+## Manual setup
 
 1. **ComfyUI**: a current build (tested against `comfyanonymous/ComfyUI` @ `6ea48ff`, 2026-10-31). The workflows use these
    core nodes: `TextEncodeQwenImageEditPlus`, `SAM3_Detect`, `RemoveBackground`, `ComfySwitchNode`, `LAYERS`.
@@ -48,7 +69,7 @@ picture ─► BiRefNet cutout ─► (optional) Qwen-Edit "normalize to front A
    cd ComfyUI/custom_nodes && git clone https://github.com/jtydhr88/ComfyUI-See-through && pip install -r ComfyUI-See-through/requirements.txt
    ```
    Its models download from Hugging Face on first run (about 16 GB VRAM at 1280 px; nf4 or `group_offload` for 8–12 GB).
-4. **Models** (~30 GB):
+4. **Models** (tens of GB; the StandRig Setup *Models* tab shows exact sizes):
    ```bash
    bash tools/download_models.sh /path/to/ComfyUI
    ```

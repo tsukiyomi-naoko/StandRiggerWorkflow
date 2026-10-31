@@ -1,0 +1,101 @@
+{
+  "catalog_version": 1,
+  "installer": {
+    "version": "1.0.0",
+    "script_url": "https://raw.githubusercontent.com/tsukiyomi-naoko/StandRiggerWorkflow/main/installer/standrig_setup.py",
+    "release_page": "https://github.com/tsukiyomi-naoko/StandRiggerWorkflow/releases",
+    "notes": "First release."
+  },
+  "comfyui": {
+    "required_core_files": [
+      "comfy_extras/nodes_qwen.py",
+      "comfy_extras/nodes_sam3.py",
+      "comfy_extras/nodes_bg_removal.py",
+      "comfy_extras/nodes_compositor.py"
+    ],
+    "tested_core": "0.43+ (ComfyUI master 2026-10-31)",
+    "update_hint": "Your ComfyUI core is missing nodes these workflows use (Qwen-Image-Edit Plus, SAM3, Remove Background, Layers). Update ComfyUI Desktop (Help → Check for updates), then reopen this tool."
+  },
+  "workflows": {
+    "repo": "tsukiyomi-naoko/StandRiggerWorkflow",
+    "ref": "main",
+    "subdir": "workflows",
+    "dest": "user/default/workflows/StandRig"
+  },
+  "plugins": [
+    {
+      "id": "standrig-bridge",
+      "name": "StandRig Bridge",
+      "repo": "tsukiyomi-naoko/StandRiggerWorkflow",
+      "ref": "main",
+      "subdir": "custom_nodes/ComfyUI-StandRig-Bridge",
+      "folder": "ComfyUI-StandRig-Bridge",
+      "required": true,
+      "description": "This project's nodes: prompts, reference sheets, expression layers, PSD writer, StandRig manifest."
+    },
+    {
+      "id": "see-through",
+      "name": "ComfyUI-See-through",
+      "repo": "jtydhr88/ComfyUI-See-through",
+      "ref": "HEAD",
+      "folder": "ComfyUI-See-through",
+      "required": true,
+      "description": "Anime layer decomposition (SIGGRAPH 2026). Needed by the full pipeline and the See-through PSD workflow. Its models download from Hugging Face on first run (~16 GB VRAM at 1280 px)."
+    },
+    {
+      "id": "h3-character-sheet",
+      "name": "H3 Character Sheet Designer",
+      "repo": "ukr8b3g-cmyk/H3-Character-Sheet-Designer",
+      "ref": "HEAD",
+      "folder": "H3-Character-Sheet-Designer",
+      "required": false,
+      "description": "Optional. One-shot multi-view character sheets with MiniMax H3 (separate, large H3 models)."
+    },
+    {
+      "id": "rgthree",
+      "name": "rgthree-comfy",
+      "repo": "rgthree/rgthree-comfy",
+      "ref": "HEAD",
+      "folder": "rgthree-comfy",
+      "required": false,
+      "description": "Optional. Only needed to open the H3 Character Sheet template unchanged."
+    }
+  ],
+  "model_variants": {
+    "qwen_edit": {
+      "label": "Qwen-Image-Edit-2511 weights",
+      "placeholder": "qwen_image_edit_2511_bf16.safetensors",
+      "options": [
+        {"id": "int8", "label": "INT8 ConvRot (recommended, 24 GB VRAM or less)", "model": "qwen-edit-int8"},
+        {"id": "bf16", "label": "BF16 (best quality, very large, 32 GB+ VRAM)", "model": "qwen-edit-bf16"}
+      ],
+      "default": "int8"
+    }
+  },
+  "models": [
+    {"id": "qwen-edit-bf16", "name": "Qwen-Image-Edit-2511 (BF16)", "variant_of": "qwen_edit", "dir": "diffusion_models",
+     "file": "qwen_image_edit_2511_bf16.safetensors",
+     "url": "https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_edit_2511_bf16.safetensors"},
+    {"id": "qwen-edit-int8", "name": "Qwen-Image-Edit-2511 (INT8 ConvRot)", "variant_of": "qwen_edit", "dir": "diffusion_models",
+     "file": "qwen_image_edit_2511_int8_convrot.safetensors",
+     "url": "https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_edit_2511_int8_convrot.safetensors"},
+    {"id": "qwen-te", "name": "Qwen2.5-VL 7B text encoder (FP8)", "group": "required", "dir": "text_encoders",
+     "file": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+     "url": "https://huggingface.co/Comfy-Org/HunyuanVideo_1.5_repackaged/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors"},
+    {"id": "qwen-vae", "name": "Qwen-Image VAE", "group": "required", "dir": "vae",
+     "file": "qwen_image_vae.safetensors",
+     "url": "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors"},
+    {"id": "lightning", "name": "Lightning 4-step LoRA", "group": "required", "dir": "loras",
+     "file": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
+     "url": "https://huggingface.co/lightx2v/Qwen-Image-Edit-2511-Lightning/resolve/main/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors"},
+    {"id": "angles", "name": "Multiple-Angles LoRA (turnaround)", "group": "required", "dir": "loras",
+     "file": "qwen-image-edit-2511-multiple-angles-lora.safetensors",
+     "url": "https://huggingface.co/fal/Qwen-Image-Edit-2511-Multiple-Angles-LoRA/resolve/main/qwen-image-edit-2511-multiple-angles-lora.safetensors"},
+    {"id": "sam3", "name": "SAM 3.1 segmentation", "group": "required", "dir": "checkpoints",
+     "file": "sam3.1_multiplex_fp16.safetensors",
+     "url": "https://huggingface.co/Comfy-Org/sam3.1/resolve/main/checkpoints/sam3.1_multiplex_fp16.safetensors"},
+    {"id": "birefnet", "name": "BiRefNet background removal", "group": "required", "dir": "background_removal",
+     "file": "birefnet.safetensors",
+     "url": "https://huggingface.co/Comfy-Org/BiRefNet/resolve/main/background_removal/birefnet.safetensors"}
+  ]
+}
