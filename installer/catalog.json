@@ -1,10 +1,10 @@
 {
   "catalog_version": 1,
   "installer": {
-    "version": "1.1.0",
+    "version": "1.2.0",
     "script_url": "https://raw.githubusercontent.com/tsukiyomi-naoko/StandRiggerWorkflow/main/installer/standrig_setup.py",
     "release_page": "https://github.com/tsukiyomi-naoko/StandRiggerWorkflow/releases",
-    "notes": "Supports the new Comfy Desktop (multiple installs, shared model folders)."
+    "notes": "Workflows tab: what each workflow does and whether you have what it needs."
   },
   "comfyui": {
     "required_core_files": [
@@ -66,36 +66,182 @@
       "label": "Qwen-Image-Edit-2511 weights",
       "placeholder": "qwen_image_edit_2511_bf16.safetensors",
       "options": [
-        {"id": "int8", "label": "INT8 ConvRot (recommended, 24 GB VRAM or less)", "model": "qwen-edit-int8"},
-        {"id": "bf16", "label": "BF16 (best quality, very large, 32 GB+ VRAM)", "model": "qwen-edit-bf16"}
+        {
+          "id": "int8",
+          "label": "INT8 ConvRot (recommended, 24 GB VRAM or less)",
+          "model": "qwen-edit-int8"
+        },
+        {
+          "id": "bf16",
+          "label": "BF16 (best quality, very large, 32 GB+ VRAM)",
+          "model": "qwen-edit-bf16"
+        }
       ],
       "default": "int8"
     }
   },
   "models": [
-    {"id": "qwen-edit-bf16", "name": "Qwen-Image-Edit-2511 (BF16)", "variant_of": "qwen_edit", "dir": "diffusion_models",
-     "file": "qwen_image_edit_2511_bf16.safetensors",
-     "url": "https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_edit_2511_bf16.safetensors"},
-    {"id": "qwen-edit-int8", "name": "Qwen-Image-Edit-2511 (INT8 ConvRot)", "variant_of": "qwen_edit", "dir": "diffusion_models",
-     "file": "qwen_image_edit_2511_int8_convrot.safetensors",
-     "url": "https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_edit_2511_int8_convrot.safetensors"},
-    {"id": "qwen-te", "name": "Qwen2.5-VL 7B text encoder (FP8)", "group": "required", "dir": "text_encoders",
-     "file": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
-     "url": "https://huggingface.co/Comfy-Org/HunyuanVideo_1.5_repackaged/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors"},
-    {"id": "qwen-vae", "name": "Qwen-Image VAE", "group": "required", "dir": "vae",
-     "file": "qwen_image_vae.safetensors",
-     "url": "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors"},
-    {"id": "lightning", "name": "Lightning 4-step LoRA", "group": "required", "dir": "loras",
-     "file": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
-     "url": "https://huggingface.co/lightx2v/Qwen-Image-Edit-2511-Lightning/resolve/main/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors"},
-    {"id": "angles", "name": "Multiple-Angles LoRA (turnaround)", "group": "required", "dir": "loras",
-     "file": "qwen-image-edit-2511-multiple-angles-lora.safetensors",
-     "url": "https://huggingface.co/fal/Qwen-Image-Edit-2511-Multiple-Angles-LoRA/resolve/main/qwen-image-edit-2511-multiple-angles-lora.safetensors"},
-    {"id": "sam3", "name": "SAM 3.1 segmentation", "group": "required", "dir": "checkpoints",
-     "file": "sam3.1_multiplex_fp16.safetensors",
-     "url": "https://huggingface.co/Comfy-Org/sam3.1/resolve/main/checkpoints/sam3.1_multiplex_fp16.safetensors"},
-    {"id": "birefnet", "name": "BiRefNet background removal", "group": "required", "dir": "background_removal",
-     "file": "birefnet.safetensors",
-     "url": "https://huggingface.co/Comfy-Org/BiRefNet/resolve/main/background_removal/birefnet.safetensors"}
+    {
+      "id": "qwen-edit-bf16",
+      "name": "Qwen-Image-Edit-2511 (BF16)",
+      "variant_of": "qwen_edit",
+      "dir": "diffusion_models",
+      "file": "qwen_image_edit_2511_bf16.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_edit_2511_bf16.safetensors"
+    },
+    {
+      "id": "qwen-edit-int8",
+      "name": "Qwen-Image-Edit-2511 (INT8 ConvRot)",
+      "variant_of": "qwen_edit",
+      "dir": "diffusion_models",
+      "file": "qwen_image_edit_2511_int8_convrot.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_edit_2511_int8_convrot.safetensors"
+    },
+    {
+      "id": "qwen-te",
+      "name": "Qwen2.5-VL 7B text encoder (FP8)",
+      "group": "required",
+      "dir": "text_encoders",
+      "file": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/HunyuanVideo_1.5_repackaged/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors"
+    },
+    {
+      "id": "qwen-vae",
+      "name": "Qwen-Image VAE",
+      "group": "required",
+      "dir": "vae",
+      "file": "qwen_image_vae.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors"
+    },
+    {
+      "id": "lightning",
+      "name": "Lightning 4-step LoRA",
+      "group": "required",
+      "dir": "loras",
+      "file": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
+      "url": "https://huggingface.co/lightx2v/Qwen-Image-Edit-2511-Lightning/resolve/main/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors"
+    },
+    {
+      "id": "angles",
+      "name": "Multiple-Angles LoRA (turnaround)",
+      "group": "required",
+      "dir": "loras",
+      "file": "qwen-image-edit-2511-multiple-angles-lora.safetensors",
+      "url": "https://huggingface.co/fal/Qwen-Image-Edit-2511-Multiple-Angles-LoRA/resolve/main/qwen-image-edit-2511-multiple-angles-lora.safetensors"
+    },
+    {
+      "id": "sam3",
+      "name": "SAM 3.1 segmentation",
+      "group": "required",
+      "dir": "checkpoints",
+      "file": "sam3.1_multiplex_fp16.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/sam3.1/resolve/main/checkpoints/sam3.1_multiplex_fp16.safetensors"
+    },
+    {
+      "id": "birefnet",
+      "name": "BiRefNet background removal",
+      "group": "required",
+      "dir": "background_removal",
+      "file": "birefnet.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/BiRefNet/resolve/main/background_removal/birefnet.safetensors"
+    }
+  ],
+  "features": [
+    "One picture in: background removed, optional 'normalize to front pose' redraw",
+    "StandRig face / body / connection target sheets in the contract's panel order",
+    "Expression and lip-sync variants (blink, smile, A/I/U/E/O, brows) as hidden PSD layers",
+    "8-view turnaround sheet with the Multiple-Angles LoRA",
+    "Parts-separated PSD (See-through, hidden areas painted in) that StandRig imports directly",
+    "standrig-visual-reference-v1 manifest with hashes, panel order, pose extremes and prompts"
+  ],
+  "workflow_list": [
+    {
+      "file": "standrig_full_pipeline.json",
+      "name": "Full pipeline (recommended)",
+      "description": "Everything in one run: clean-up, face/body/connection targets, expressions, turnaround, See-through PSD and the reference pack.",
+      "outputs": "character.psd, face/body/connection/expression/turnaround sheets, reference-manifest.json",
+      "plugins": [
+        "standrig-bridge",
+        "see-through"
+      ],
+      "models": [
+        "qwen_edit",
+        "qwen-te",
+        "qwen-vae",
+        "lightning",
+        "angles",
+        "sam3",
+        "birefnet"
+      ]
+    },
+    {
+      "file": "standrig_reference_targets.json",
+      "name": "StandRig reference targets",
+      "description": "Only the visual gate StandRig requires before modeling: face, body and connection target sheets plus the manifest.",
+      "outputs": "face-target.png, body-target.png, connection-target.png, reference-manifest.json",
+      "plugins": [
+        "standrig-bridge"
+      ],
+      "models": [
+        "qwen_edit",
+        "qwen-te",
+        "qwen-vae",
+        "lightning",
+        "sam3",
+        "birefnet"
+      ]
+    },
+    {
+      "file": "standrig_layers_psd_seethrough.json",
+      "name": "Layered PSD (See-through)",
+      "description": "Parts-separated PSD with hidden areas painted in, plus expression/viseme variant layers.",
+      "outputs": "character.psd, expression-sheet.png, reference-manifest.json",
+      "plugins": [
+        "standrig-bridge",
+        "see-through"
+      ],
+      "models": [
+        "qwen_edit",
+        "qwen-te",
+        "qwen-vae",
+        "lightning",
+        "sam3",
+        "birefnet"
+      ]
+    },
+    {
+      "file": "standrig_layers_psd_sam3.json",
+      "name": "Quick layered PSD (SAM3 only)",
+      "description": "Fast PSD from SAM3 masks, no extra node pack. Hidden areas are NOT painted in; good for tests.",
+      "outputs": "character_sam3.psd, expression-sheet.png",
+      "plugins": [
+        "standrig-bridge"
+      ],
+      "models": [
+        "qwen_edit",
+        "qwen-te",
+        "qwen-vae",
+        "lightning",
+        "sam3",
+        "birefnet"
+      ]
+    },
+    {
+      "file": "standrig_turnaround_sheet.json",
+      "name": "Turnaround sheet",
+      "description": "8 views around the character (Multiple-Angles LoRA) as an orientation reference.",
+      "outputs": "turnaround-sheet.png",
+      "plugins": [
+        "standrig-bridge"
+      ],
+      "models": [
+        "qwen_edit",
+        "qwen-te",
+        "qwen-vae",
+        "lightning",
+        "angles",
+        "birefnet"
+      ]
+    }
   ]
 }

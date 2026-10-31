@@ -39,7 +39,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 APP_NAME = "StandRig Setup"
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 CATALOG_URL = "https://raw.githubusercontent.com/tsukiyomi-naoko/StandRiggerWorkflow/main/installer/catalog.json"
 # Overridable for testing / mirrors
 GITHUB_API = os.environ.get("STANDRIG_GITHUB_API", "https://api.github.com")
@@ -688,6 +688,31 @@ class Installer:
         self.log("In ComfyUI open the Workflows sidebar (W) → StandRig.")
         return n
 
+    def workflows_dest(self) -> Optional[Path]:
+        wf = self.catalog.get("workflows")
+        return self.env.base / wf["dest"] if wf and self.env.base else None
+
+    def workflow_status(self, w: dict) -> dict:
+        """Installed? and which plugins/models it still needs."""
+        dest = self.workflows_dest()
+        installed = bool(dest and (dest / w["file"]).exists())
+        plugins = {p["id"]: p for p in all_plugins(self.catalog, self.settings)}
+        miss_p = [plugins[i]["name"] for i in w.get("plugins", []) if i in plugins
+                  and not self.plugin_dir(plugins[i]).exists()]
+        chosen = {m["id"]: m for m in self.model_list()}
+        miss_m = []
+        for mid in w.get("models", []):
+            m = chosen.get(mid) or next((x for x in self.model_list() if x.get("variant_of") == mid), None)
+            if m is not None and self.find_model(m) is None:
+                miss_m.append(m["name"])
+        if not installed:
+            state = "Not installed"
+        elif miss_p or miss_m:
+            state = "Needs " + ", ".join(miss_p + ([f"{len(miss_m)} model(s)"] if miss_m else []))
+        else:
+            state = "Ready"
+        return {"installed": installed, "missing_plugins": miss_p, "missing_models": miss_m, "state": state}
+
     # ---------------------------------------------------------------- models
     def model_list(self) -> List[dict]:
         """Models to install given the chosen variants."""
@@ -1023,6 +1048,69 @@ def run_gui() -> None:
     ttk.Button(howto, text="Project page / guide", command=lambda: webbrowser.open(
         "https://github.com/tsukiyomi-naoko/StandRiggerWorkflow#readme")).pack(anchor="w", pady=(6, 0))
 
+    # --------------------------------------------------------- tab: workflows
+    t_wf = ttk.Frame(nb, padding=10)
+    nb.add(t_wf, text="  Workflows  ")
+    feat_var = tk.StringVar()
+    ttk.Label(t_wf, textvariable=feat_var, justify="left", wraplength=980).pack(anchor="w", pady=(0, 8))
+    wcols = ("name", "status", "description")
+    wtree = ttk.Treeview(t_wf, columns=wcols, show="headings", selectmode="browse", height=6)
+    for c, w in zip(wcols, (230, 230, 560)):
+        wtree.heading(c, text=c.capitalize())
+        wtree.column(c, width=w, anchor="w")
+    wtree.pack(fill="x")
+    wdetail = tk.StringVar(value="Select a workflow to see what it makes and what it needs.")
+    ttk.Label(t_wf, textvariable=wdetail, justify="left", wraplength=980).pack(anchor="w", pady=8)
+
+    def on_wf_select(_e=None):
+        sel = wtree.selection()
+        w = next((x for x in state["catalog"].get("workflow_list", []) if x["file"] in sel), None)
+        if not w or not state["env"].base:
+            return
+        st = Installer(state["env"], state["catalog"], settings).workflow_status(w)
+        lines = [f"{w['name']}  ({w['file']})", w.get("description", ""), f"Produces: {w.get('outputs', '-')}"]
+        if st["missing_plugins"]:
+            lines.append("Missing plugins: " + ", ".join(st["missing_plugins"]))
+        if st["missing_models"]:
+            lines.append("Missing models: " + ", ".join(st["missing_models"]))
+        if not (st["missing_plugins"] or st["missing_models"]):
+            lines.append("Everything it needs is installed." if st["installed"] else
+                         "Plugins and models are ready; install the workflow files.")
+        wdetail.set("\n".join(lines))
+
+    wtree.bind("<<TreeviewSelect>>", on_wf_select)
+    wrow = ttk.Frame(t_wf)
+    wrow.pack(anchor="w")
+    ttk.Button(wrow, text="Install / update workflows", command=lambda: run_task(
+        "Installing workflows", lambda i: i.install_workflows())).pack(side="left")
+    ttk.Button(wrow, text="Install what the selected workflow needs", command=lambda: install_for_selected()
+               ).pack(side="left", padx=6)
+    ttk.Button(wrow, text="Open workflows folder", command=lambda: state["env"].base and open_path(
+        Installer(state["env"], state["catalog"], settings).workflows_dest())).pack(side="left")
+    ttk.Label(t_wf, wraplength=980, justify="left", text=(
+        "In ComfyUI: press W (Workflows sidebar) → StandRig, open a workflow, choose your picture in "
+        "'Load character picture' and press Run. Results: output\\standrig\\<project>\\.")).pack(anchor="w", pady=8)
+
+    def install_for_selected():
+        sel = wtree.selection()
+        w = next((x for x in state["catalog"].get("workflow_list", []) if x["file"] in sel), None)
+        if not w:
+            messagebox.showinfo(APP_NAME, "Select a workflow first.")
+            return
+
+        def fn(i: Installer):
+            plugins = {p["id"]: p for p in all_plugins(state["catalog"], settings)}
+            for pid in w.get("plugins", []):
+                if pid in plugins and not i.plugin_dir(plugins[pid]).exists():
+                    i.install_plugin(plugins[pid])
+            i.install_workflows()
+            wanted = set(w.get("models", []))
+            for m in i.model_list():
+                if (m["id"] in wanted or m.get("variant_of") in wanted) and i.find_model(m) is None:
+                    i.download_model(m)
+            i.log(f"✔ {w['name']} is ready. Restart ComfyUI if plugins were installed.")
+        run_task(f"Setting up {w['name']}", fn, needs_closed=True)
+
     # ----------------------------------------------------------- tab: plugins
     t_plug = ttk.Frame(nb, padding=10)
     nb.add(t_plug, text="  Plugins  ")
@@ -1213,6 +1301,16 @@ def run_gui() -> None:
         for s in sel:
             if ptree.exists(s):
                 ptree.selection_add(s)
+        wsel = wtree.selection()
+        wtree.delete(*wtree.get_children())
+        for w in cat.get("workflow_list", []):
+            st = inst.workflow_status(w)["state"] if env.base else "-"
+            wtree.insert("", "end", iid=w["file"], values=(w["name"], st, w.get("description", "")))
+        for x in wsel:
+            if wtree.exists(x):
+                wtree.selection_add(x)
+        feats = cat.get("features", [])
+        feat_var.set(("What these workflows do:\n" + "\n".join("  • " + f for f in feats)) if feats else "")
         msel = mtree.selection()
         mtree.delete(*mtree.get_children())
         for m in inst.model_list():
