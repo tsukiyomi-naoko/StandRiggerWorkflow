@@ -39,7 +39,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 APP_NAME = "StandRig Setup"
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 CATALOG_URL = "https://raw.githubusercontent.com/tsukiyomi-naoko/StandRiggerWorkflow/main/installer/catalog.json"
 # Overridable for testing / mirrors
 GITHUB_API = os.environ.get("STANDRIG_GITHUB_API", "https://api.github.com")
@@ -106,6 +106,11 @@ class ComfyEnv:
     core_version: str = "?"
     desktop_app: Optional[Path] = None
     notes: List[str] = field(default_factory=list)
+    model_download_dir: Optional[Path] = None   # where new models are saved
+    model_dirs: List[Path] = field(default_factory=list)  # every models root ComfyUI searches
+    instance_id: Optional[str] = None
+    instance_name: Optional[str] = None
+    instances: List[dict] = field(default_factory=list)  # Comfy Desktop 2: [{id, name, installPath}]
 
     @property
     def custom_nodes(self) -> Path:
@@ -113,7 +118,15 @@ class ComfyEnv:
 
     @property
     def models(self) -> Path:
-        return self.base / "models"
+        return self.model_download_dir or (self.base / "models")
+
+    def all_model_dirs(self) -> List[Path]:
+        seen, out = set(), []
+        for d in [self.models, *self.model_dirs, self.base / "models" if self.base else None]:
+            if d is not None and str(d).lower() not in seen:
+                seen.add(str(d).lower())
+                out.append(d)
+        return out
 
 
 def _first_existing(paths) -> Optional[Path]:
@@ -155,7 +168,95 @@ def read_core_version(core: Path) -> str:
         return "?"
 
 
+DESKTOP2_DIR_NAMES = ("Comfy Desktop", "comfyui-desktop-2")
+
+
+def desktop2_config_dir() -> Optional[Path]:
+    """Folder holding Comfy Desktop's settings.json / installations.json."""
+    for name in DESKTOP2_DIR_NAMES:
+        d = app_data_dir() / name
+        if (d / "installations.json").exists():
+            return d
+    return None
+
+
+def _read_json(p: Path, default):
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return default
+
+
+def _find_comfy_dir(install_path: Path) -> Path:
+    """Port of comfy-desktop findComfyUIDir()."""
+    direct = install_path / "ComfyUI"
+    if direct.exists():
+        return direct
+    if all((install_path / x).exists() for x in ("models", "user", "custom_nodes")):
+        return install_path
+    try:
+        for sub in install_path.iterdir():
+            if sub.is_dir() and (sub / "python_embeded").exists():
+                return sub / "ComfyUI" if (sub / "ComfyUI").exists() else sub
+    except Exception:
+        pass
+    return direct
+
+
+def detect_desktop2(settings: Settings) -> Optional[ComfyEnv]:
+    """Comfy Desktop (multi-install app: ComfyUI-Installs / ComfyUI-Shared)."""
+    cfg = desktop2_config_dir()
+    if cfg is None:
+        return None
+    records = _read_json(cfg / "installations.json", [])
+    dsettings = _read_json(cfg / "settings.json", {})
+    if not isinstance(records, list):
+        return None
+    usable = [r for r in records if isinstance(r, dict) and r.get("installPath")
+              and r.get("status") in (None, "installed", "updating")
+              and Path(r["installPath"]).exists()]
+    if not usable:
+        return None
+    env = ComfyEnv(kind="desktop2")
+    env.instances = [{"id": r.get("id"), "name": r.get("name") or Path(r["installPath"]).name,
+                      "installPath": r["installPath"]} for r in usable]
+    want = settings.get("instance_id")
+    rec = next((r for r in usable if r.get("id") == want), None) or \
+        max(usable, key=lambda r: r.get("lastLaunchedAt") or 0)
+    env.instance_id, env.instance_name = rec.get("id"), rec.get("name")
+    ip = Path(rec["installPath"])
+    exe = "Scripts/python.exe" if IS_WIN else "bin/python3"
+    if rec.get("adopted") is True and rec.get("adoptedBaseDir"):
+        base = Path(rec["adoptedBaseDir"])
+        env.base = base
+        env.python = Path(rec["adoptedPythonPath"]) if rec.get("adoptedPythonPath") else None
+        uv = base / ".venv" / ("Scripts/uv.exe" if IS_WIN else "bin/uv")
+        env.notes.append("adopted install (data in the legacy ComfyUI folder)")
+    else:
+        base = _find_comfy_dir(ip)
+        env.base = base
+        env.python = _first_existing([ip / "ComfyUI" / ".venv" / exe, ip / "envs" / "default" / exe])
+        uv = ip / "standalone-env" / ("uv.exe" if IS_WIN else "bin/uv")
+    if env.python is not None and not env.python.exists():
+        env.python = None
+    env.uv = uv if uv.exists() else _first_existing([ip / "standalone-env" / ("uv.exe" if IS_WIN else "bin/uv")])
+    core = ip / "ComfyUI"
+    env.core = core if (core / "comfy_extras").is_dir() else (base if (base / "comfy_extras").is_dir() else None)
+    env.core_version = read_core_version(env.core) if env.core else "?"
+    shared = [Path(d) for d in (dsettings.get("modelsDirs") or []) if d] if rec.get("useSharedModels", True) else []
+    own = base / "models"
+    env.model_dirs = shared + [Path(d) for d in (rec.get("modelDirs") or []) if d] + [own]
+    primary = rec.get("modelDirsPrimary")
+    env.model_download_dir = Path(primary) if primary else (shared[0] if shared else own)
+    env.notes.append(f"Comfy Desktop config: {cfg}")
+    return env
+
+
 def detect(settings: Settings) -> ComfyEnv:
+    if not settings.get("base_path"):
+        env2 = detect_desktop2(settings)
+        if env2 is not None:
+            return env2
     env = ComfyEnv()
     cfg = app_data_dir() / "ComfyUI" / "config.json"
     base = settings.get("base_path")
@@ -518,7 +619,7 @@ class Installer:
         py = self.env.python
         if py is None:
             raise RuntimeError("ComfyUI's Python was not found, cannot install requirements")
-        if self.env.uv and self.env.kind == "desktop":
+        if self.env.uv and self.env.kind in ("desktop", "desktop2"):
             return [str(self.env.uv), "pip", *args, "--python", str(py)]
         return [str(py), "-m", "pip", *args]
 
@@ -601,10 +702,18 @@ class Installer:
     def model_path(self, m: dict) -> Path:
         return self.env.models / m["dir"] / m["file"]
 
+    def find_model(self, m: dict) -> Optional[Path]:
+        for root in self.env.all_model_dirs():
+            p = root / m["dir"] / m["file"]
+            if p.exists():
+                return p
+        return None
+
     def model_state(self, m: dict) -> str:
         p = self.model_path(m)
-        if p.exists():
-            return "Installed"
+        found = self.find_model(m)
+        if found is not None:
+            return "Installed" if found == p else f"Installed ({found.parents[1]})"
         part = p.with_name(p.name + ".part")
         if part.exists():
             return f"Partial ({fmt_size(part.stat().st_size)})"
@@ -612,8 +721,9 @@ class Installer:
 
     def download_model(self, m: dict) -> None:
         dest = self.model_path(m)
-        if dest.exists():
-            self.log(f"[{m['name']}] already present")
+        found = self.find_model(m)
+        if found is not None:
+            self.log(f"[{m['name']}] already present: {found}")
             return
         self.log(f"[{m['name']}] downloading → {dest}")
         t0, last = time.time(), [0.0]
@@ -717,7 +827,23 @@ def run_gui() -> None:
     info_lbl.grid(row=2, column=0, columnspan=4, sticky="w", pady=(4, 0))
     warn_var = tk.StringVar()
     ttk.Label(head, textvariable=warn_var, style="Warn.TLabel", wraplength=980, justify="left").grid(
-        row=3, column=0, columnspan=4, sticky="w")
+        row=4, column=0, columnspan=4, sticky="w")
+    inst_row = ttk.Frame(head)
+    inst_lbl = ttk.Label(inst_row, text="ComfyUI install:")
+    inst_lbl.pack(side="left")
+    inst_var = tk.StringVar()
+    inst_box = ttk.Combobox(inst_row, textvariable=inst_var, state="readonly", width=60)
+    inst_box.pack(side="left", padx=6)
+
+    def on_instance(_e=None):
+        env = state["env"]
+        match = next((i for i in env.instances if f"{i['name']}  ({i['installPath']})" == inst_var.get()), None)
+        if match:
+            settings["instance_id"] = match["id"]
+            settings.save()
+            refresh_env()
+
+    inst_box.bind("<<ComboboxSelected>>", on_instance)
 
     def browse():
         d = filedialog.askdirectory(title="Select your ComfyUI folder (contains models and custom_nodes)")
@@ -998,7 +1124,7 @@ def run_gui() -> None:
     def mod_download(only_missing: bool):
         if only_missing:
             inst = Installer(state["env"], state["catalog"], settings, log, progress)
-            sel = [m for m in inst.model_list() if not inst.model_path(m).exists()]
+            sel = [m for m in inst.model_list() if inst.find_model(m) is None]
         else:
             sel = models_by_ids(set(mtree.selection()))
         if not sel:
@@ -1012,8 +1138,9 @@ def run_gui() -> None:
     ttk.Button(mrow, text="Open models folder",
                command=lambda: state["env"].base and open_path(state["env"].models)).pack(side="left", padx=6)
     ttk.Label(t_mod, wraplength=900, justify="left", text=(
-        "Files go to <ComfyUI folder>\\models\\<folder>. Interrupted downloads are kept as .part files and resume. "
-        "See-through downloads its own models from Hugging Face the first time its nodes run.")).pack(anchor="w")
+        "New files go to the 'Models download to' folder shown above (Comfy Desktop's DOWNLOADS folder). A model that "
+        "already exists in any of your model folders counts as installed and is not downloaded again. Interrupted "
+        "downloads are kept as .part files and resume. See-through downloads its own models the first time it runs.")).pack(anchor="w")
 
     # ---------------------------------------------------------- tab: settings
     t_set = ttk.Frame(nb, padding=14)
@@ -1111,12 +1238,25 @@ def run_gui() -> None:
         base_var.set(str(env.base) if env.base else "")
         parts = []
         if env.base:
-            parts.append(f"Type: {env.kind}")
+            parts.append({"desktop2": "Comfy Desktop", "desktop": "ComfyUI Desktop (legacy)", "portable": "Portable",
+                          "manual": "Manual install"}.get(env.kind, env.kind) +
+                         (f" · install '{env.instance_name}'" if env.instance_name else ""))
             parts.append(f"ComfyUI core {env.core_version}" if env.core else "core: not found")
-            parts.append(f"Python: {env.python}" if env.python else "Python: not found")
+            parts.append("Python: found" if env.python else "Python: not found")
             if env.uv:
                 parts.append("uv: found")
-        info_var.set("   •   ".join(parts) if parts else "; ".join(env.notes))
+        if env.base:
+            parts.append(f"Custom nodes → {env.custom_nodes}")
+            parts.append(f"Models download to → {env.models}")
+        info_var.set("\n".join(["   •   ".join(parts[:-2]), *parts[-2:]]) if env.base else "; ".join(env.notes))
+        if len(env.instances) > 1:
+            labels = [f"{i['name']}  ({i['installPath']})" for i in env.instances]
+            inst_box["values"] = labels
+            cur = next((f"{i['name']}  ({i['installPath']})" for i in env.instances if i["id"] == env.instance_id), labels[0])
+            inst_var.set(cur)
+            inst_row.grid(row=3, column=0, columnspan=4, sticky="w", pady=(4, 0))
+        else:
+            inst_row.grid_remove()
         warns = []
         if env.base and not env.python:
             warns.append("ComfyUI's Python environment was not found (start ComfyUI once to finish its setup), "
@@ -1155,6 +1295,7 @@ def run_cli(argv: List[str]) -> int:
     ap.add_argument("--no-models", action="store_true")
     ap.add_argument("--no-requirements", action="store_true", help="skip pip installs")
     ap.add_argument("--qwen", choices=["int8", "bf16"])
+    ap.add_argument("--instance", help="Comfy Desktop install id or name")
     ap.add_argument("--status", action="store_true", help="only print what is installed")
     a = ap.parse_args(argv)
     s = Settings.load()
@@ -1164,7 +1305,15 @@ def run_cli(argv: List[str]) -> int:
         s["qwen_variant"] = a.qwen
     cat = load_catalog(s, print)
     env = detect(s)
-    print(f"ComfyUI: {env.base} ({env.kind}), core {env.core_version}, python {env.python}, uv {env.uv}")
+    if a.instance and env.instances:
+        pick = next((i for i in env.instances if a.instance in (i["id"], i["name"])), None)
+        if pick:
+            s["instance_id"] = pick["id"]
+            env = detect(s)
+    print(f"ComfyUI: {env.base} ({env.kind}{', ' + str(env.instance_name) if env.instance_name else ''}), "
+          f"core {env.core_version}, python {env.python}, uv {env.uv}")
+    print(f"  custom nodes -> {env.custom_nodes}\n  models download -> {env.models}\n  model folders: "
+          + "; ".join(str(d) for d in env.all_model_dirs()))
     for m in core_missing(env, cat):
         print("  missing core file:", m)
     if not env.base:

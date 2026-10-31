@@ -30,7 +30,13 @@ picture ─► BiRefNet cutout ─► (optional) Qwen-Edit "normalize to front A
 1. Download this repository (**Code → Download ZIP**) and unzip it anywhere.
 2. Double-click **`StandRigSetup.bat`**. It uses ComfyUI Desktop's own Python, so nothing else needs installing.
    Alternatively, get `StandRigSetup.exe` from the [Releases](https://github.com/tsukiyomi-naoko/StandRiggerWorkflow/releases) page.
-3. Check that the tool found your ComfyUI folder (the one with `models` and `custom_nodes`; change it with **Browse…** if not).
+3. Check what the tool detected at the top. It reads Comfy Desktop's own settings (`%APPDATA%\Comfy Desktop`), so it
+   works with both the new multi-install Desktop and the older single-folder one:
+   * **ComfyUI install**: pick which install to set up if you have several.
+   * **Custom nodes →** where plugins go: the install's folder, or `Documents\ComfyUI` for installs adopted from the old Desktop.
+   * **Models download to →** Desktop's DOWNLOADS folder (by default `%LOCALAPPDATA%\Comfy-Desktop\ComfyUI-Shared\models`).
+     Models already in any of your model folders are recognised and not downloaded again.
+   Use **Browse…** only to point at a different ComfyUI by hand.
    **Close ComfyUI**, then click **Install / update everything**.
 4. Restart ComfyUI and open the Workflows sidebar (**W**) → **StandRig** → `standrig_full_pipeline`.
 

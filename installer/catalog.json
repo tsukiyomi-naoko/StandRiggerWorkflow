@@ -1,10 +1,10 @@
 {
   "catalog_version": 1,
   "installer": {
-    "version": "1.0.0",
+    "version": "1.1.0",
     "script_url": "https://raw.githubusercontent.com/tsukiyomi-naoko/StandRiggerWorkflow/main/installer/standrig_setup.py",
     "release_page": "https://github.com/tsukiyomi-naoko/StandRiggerWorkflow/releases",
-    "notes": "First release."
+    "notes": "Supports the new Comfy Desktop (multiple installs, shared model folders)."
   },
   "comfyui": {
     "required_core_files": [
