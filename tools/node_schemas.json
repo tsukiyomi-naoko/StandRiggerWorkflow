@@ -1,0 +1,2940 @@
+{
+ "CFGNorm": {
+  "api_node": false,
+  "category": "advanced/guidance",
+  "deprecated": false,
+  "description": "",
+  "dev_only": false,
+  "display_name": null,
+  "essentials_category": null,
+  "experimental": true,
+  "has_intermediate_output": false,
+  "input": {
+   "optional": {
+    "pre_cfg": [
+     "BOOLEAN",
+     {
+      "default": false,
+      "tooltip": "If true, rescale the combined noise BEFORE the sampler's CFG combine, without clamping (can amplify). Matches the norm-scaled CFG used by models like Lens. Default false keeps the original post-CFG x0-space attenuate-only behavior."
+     }
+    ]
+   },
+   "required": {
+    "model": [
+     "MODEL",
+     {}
+    ],
+    "strength": [
+     "FLOAT",
+     {
+      "default": 1.0,
+      "max": 100.0,
+      "min": 0.0,
+      "step": 0.01
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "optional": [
+    "pre_cfg"
+   ],
+   "required": [
+    "model",
+    "strength"
+   ]
+  },
+  "is_input_list": false,
+  "name": "CFGNorm",
+  "output": [
+   "MODEL"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_matchtypes": null,
+  "output_name": [
+   "patched_model"
+  ],
+  "output_node": false,
+  "output_tooltips": [
+   null
+  ],
+  "price_badge": null,
+  "python_module": "comfy_extras.nodes_cfg",
+  "search_aliases": null
+ },
+ "CLIPLoader": {
+  "category": "model/loaders",
+  "description": "Recipes:\nsd: clip-l\nstable cascade: clip-g\nsd3: t5 xxl / clip-g / clip-l\nstable audio: t5 base\nmochi: t5 xxl\ncogvideox: t5 xxl (226-token padding)\ncosmos: old t5 xxl\nlumina2: gemma 2 2B\nwan: umt5 xxl\nhidream: llama-3.1 (Recommend) or t5\nomnigen2: qwen vl 2.5 3B\njoyimage: qwen3-vl 8B\nlens: gpt-oss-20b\npixeldit: gemma 2 2B elm\nminimax: MiniMax H3 Qwen3-VL or Music3 Qwen/RVQ\nflux3: qwen3-vl 4B\nfibo2: qwen3-vl 4B",
+  "display_name": "Load CLIP",
+  "has_intermediate_output": false,
+  "input": {
+   "optional": {
+    "device": [
+     [
+      "default",
+      "cpu"
+     ],
+     {
+      "advanced": true
+     }
+    ]
+   },
+   "required": {
+    "clip_name": [
+     []
+    ],
+    "type": [
+     [
+      "stable_diffusion",
+      "stable_cascade",
+      "sd3",
+      "stable_audio",
+      "mochi",
+      "ltxv",
+      "pixart",
+      "cosmos",
+      "lumina2",
+      "wan",
+      "hidream",
+      "chroma",
+      "ace",
+      "omnigen2",
+      "qwen_image",
+      "hunyuan_image",
+      "flux2",
+      "ovis",
+      "longcat_image",
+      "cogvideox",
+      "lens",
+      "pixeldit",
+      "ideogram4",
+      "boogu",
+      "krea2",
+      "joyimage",
+      "mage",
+      "minimax",
+      "yue2",
+      "flux3",
+      "moss_image",
+      "fibo2"
+     ]
+    ]
+   }
+  },
+  "input_order": {
+   "optional": [
+    "device"
+   ],
+   "required": [
+    "clip_name",
+    "type"
+   ]
+  },
+  "is_input_list": false,
+  "name": "CLIPLoader",
+  "output": [
+   "CLIP"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "CLIP"
+  ],
+  "output_node": false,
+  "python_module": "nodes",
+  "search_aliases": []
+ },
+ "CLIPTextEncode": {
+  "category": "model/conditioning",
+  "description": "Encodes a text prompt using a CLIP model into an embedding that can be used to guide the diffusion model towards generating specific images.",
+  "display_name": "CLIP Text Encode (Prompt)",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "clip": [
+     "CLIP",
+     {
+      "tooltip": "The CLIP model used for encoding the text."
+     }
+    ],
+    "text": [
+     "STRING",
+     {
+      "dynamicPrompts": true,
+      "multiline": true,
+      "tooltip": "The text to be encoded."
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "text",
+    "clip"
+   ]
+  },
+  "is_input_list": false,
+  "name": "CLIPTextEncode",
+  "output": [
+   "CONDITIONING"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "CONDITIONING"
+  ],
+  "output_node": false,
+  "output_tooltips": [
+   "A conditioning containing the embedded text used to guide the diffusion model."
+  ],
+  "python_module": "nodes",
+  "search_aliases": [
+   "text",
+   "prompt",
+   "text prompt",
+   "positive prompt",
+   "negative prompt",
+   "encode text",
+   "text encoder",
+   "encode prompt"
+  ]
+ },
+ "CheckpointLoaderSimple": {
+  "category": "model/loaders",
+  "description": "Loads a diffusion model checkpoint, diffusion models are used to denoise latents.",
+  "display_name": "Load Checkpoint",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "ckpt_name": [
+     [],
+     {
+      "tooltip": "The name of the checkpoint (model) to load."
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "ckpt_name"
+   ]
+  },
+  "is_input_list": false,
+  "name": "CheckpointLoaderSimple",
+  "output": [
+   "MODEL",
+   "CLIP",
+   "VAE"
+  ],
+  "output_is_list": [
+   false,
+   false,
+   false
+  ],
+  "output_name": [
+   "MODEL",
+   "CLIP",
+   "VAE"
+  ],
+  "output_node": false,
+  "output_tooltips": [
+   "The model used for denoising latents.",
+   "The CLIP model used for encoding text prompts.",
+   "The VAE model used for encoding and decoding images to and from latent space."
+  ],
+  "python_module": "nodes",
+  "search_aliases": [
+   "load model",
+   "checkpoint",
+   "model loader",
+   "load checkpoint",
+   "ckpt",
+   "model"
+  ]
+ },
+ "ComfySwitchNode": {
+  "api_node": false,
+  "category": "utilities/logic",
+  "deprecated": false,
+  "description": "",
+  "dev_only": false,
+  "display_name": "If/Else Switch",
+  "essentials_category": null,
+  "experimental": true,
+  "has_intermediate_output": false,
+  "input": {
+   "optional": {
+    "on_false": [
+     "COMFY_MATCHTYPE_V3",
+     {
+      "lazy": true,
+      "template": {
+       "allowed_types": "*",
+       "template_id": "switch"
+      }
+     }
+    ],
+    "on_true": [
+     "COMFY_MATCHTYPE_V3",
+     {
+      "lazy": true,
+      "template": {
+       "allowed_types": "*",
+       "template_id": "switch"
+      }
+     }
+    ]
+   },
+   "required": {
+    "switch": [
+     "BOOLEAN",
+     {}
+    ]
+   }
+  },
+  "input_order": {
+   "optional": [
+    "on_false",
+    "on_true"
+   ],
+   "required": [
+    "switch"
+   ]
+  },
+  "is_input_list": false,
+  "name": "ComfySwitchNode",
+  "output": [
+   "COMFY_MATCHTYPE_V3"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_matchtypes": [
+   "switch"
+  ],
+  "output_name": [
+   "output"
+  ],
+  "output_node": false,
+  "output_tooltips": [
+   null
+  ],
+  "price_badge": null,
+  "python_module": "comfy_extras.nodes_logic",
+  "search_aliases": [
+   "if",
+   "then",
+   "switch",
+   "conditional",
+   "branch"
+  ]
+ },
+ "FluxKontextImageScale": {
+  "api_node": false,
+  "category": "model/conditioning/flux",
+  "deprecated": false,
+  "description": "This node resizes the image to one that is more optimal for flux kontext.",
+  "dev_only": false,
+  "display_name": null,
+  "essentials_category": null,
+  "experimental": false,
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "image": [
+     "IMAGE",
+     {}
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "image"
+   ]
+  },
+  "is_input_list": false,
+  "name": "FluxKontextImageScale",
+  "output": [
+   "IMAGE"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_matchtypes": null,
+  "output_name": [
+   "IMAGE"
+  ],
+  "output_node": false,
+  "output_tooltips": [
+   null
+  ],
+  "price_badge": null,
+  "python_module": "comfy_extras.nodes_flux",
+  "search_aliases": null
+ },
+ "FluxKontextMultiReferenceLatentMethod": {
+  "api_node": false,
+  "category": "model/conditioning/flux",
+  "deprecated": false,
+  "description": "",
+  "dev_only": false,
+  "display_name": "Edit Model Reference Method",
+  "essentials_category": null,
+  "experimental": true,
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "conditioning": [
+     "CONDITIONING",
+     {}
+    ],
+    "reference_latents_method": [
+     "COMBO",
+     {
+      "advanced": true,
+      "multiselect": false,
+      "options": [
+       "offset",
+       "index",
+       "uxo/uno",
+       "index_timestep_zero",
+       "index_timestep_zero_isolated",
+       "index_timestep_zero_text_start"
+      ]
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "conditioning",
+    "reference_latents_method"
+   ]
+  },
+  "is_input_list": false,
+  "name": "FluxKontextMultiReferenceLatentMethod",
+  "output": [
+   "CONDITIONING"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_matchtypes": null,
+  "output_name": [
+   "CONDITIONING"
+  ],
+  "output_node": false,
+  "output_tooltips": [
+   null
+  ],
+  "price_badge": null,
+  "python_module": "comfy_extras.nodes_flux",
+  "search_aliases": null
+ },
+ "ImageCompositor": {
+  "api_node": false,
+  "category": "image",
+  "deprecated": false,
+  "description": "",
+  "dev_only": false,
+  "display_name": "Create Layered Image",
+  "essentials_category": null,
+  "experimental": true,
+  "has_intermediate_output": true,
+  "input": {
+   "hidden": {
+    "extra_pnginfo": [
+     "EXTRA_PNGINFO"
+    ],
+    "prompt": [
+     "PROMPT"
+    ]
+   },
+   "required": {
+    "compositor": [
+     "COMPOSITOR",
+     {
+      "default": {},
+      "socketless": true,
+      "tooltip": "Layered composition saved by the compositor editor."
+     }
+    ],
+    "layers": [
+     "LAYERS",
+     {
+      "tooltip": "Layer stack to composite; build it with Add Layer. Items are stacked by z_index, batch frames inside an item expand to consecutive layers, and item placement, opacity, and blend mode define the initial composition. Without an explicit document canvas the size is a best-effort maximum extent of the placed layers. A saved composition that matches the current inputs takes priority."
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "hidden": [
+    "prompt",
+    "extra_pnginfo"
+   ],
+   "required": [
+    "layers",
+    "compositor"
+   ]
+  },
+  "is_input_list": false,
+  "name": "ImageCompositor",
+  "output": [
+   "IMAGE",
+   "MASK"
+  ],
+  "output_is_list": [
+   false,
+   false
+  ],
+  "output_matchtypes": null,
+  "output_name": [
+   "IMAGE",
+   "MASK"
+  ],
+  "output_node": true,
+  "output_tooltips": [
+   "Composited image. Carries an alpha channel when the composite has transparent areas (e.g. hidden background), otherwise plain RGB.",
+   "Transparency of the composite (1 = fully transparent). All zeros when the composite is opaque."
+  ],
+  "price_badge": null,
+  "python_module": "comfy_extras.nodes_compositor",
+  "search_aliases": [
+   "compositor",
+   "composite",
+   "layer",
+   "layers",
+   "layer editor",
+   "psd"
+  ]
+ },
+ "JoinImageWithAlpha": {
+  "api_node": false,
+  "category": "image/compositing",
+  "deprecated": false,
+  "description": "",
+  "dev_only": false,
+  "display_name": "Join Image with Alpha",
+  "essentials_category": null,
+  "experimental": false,
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "alpha": [
+     "MASK",
+     {}
+    ],
+    "image": [
+     "IMAGE",
+     {}
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "image",
+    "alpha"
+   ]
+  },
+  "is_input_list": false,
+  "name": "JoinImageWithAlpha",
+  "output": [
+   "IMAGE"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_matchtypes": null,
+  "output_name": [
+   "IMAGE"
+  ],
+  "output_node": false,
+  "output_tooltips": [
+   null
+  ],
+  "price_badge": null,
+  "python_module": "comfy_extras.nodes_compositing",
+  "search_aliases": [
+   "add transparency",
+   "apply alpha",
+   "composite alpha",
+   "RGBA"
+  ]
+ },
+ "KSampler": {
+  "category": "model/sampling",
+  "description": "Uses the provided model, positive and negative conditioning to denoise the latent image.",
+  "display_name": "KSampler",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "cfg": [
+     "FLOAT",
+     {
+      "default": 8.0,
+      "max": 100.0,
+      "min": 0.0,
+      "round": 0.01,
+      "step": 0.1,
+      "tooltip": "The Classifier-Free Guidance scale balances creativity and adherence to the prompt. Higher values result in images more closely matching the prompt however too high values will negatively impact quality."
+     }
+    ],
+    "denoise": [
+     "FLOAT",
+     {
+      "default": 1.0,
+      "max": 1.0,
+      "min": 0.0,
+      "step": 0.01,
+      "tooltip": "The amount of denoising applied, lower values will maintain the structure of the initial image allowing for image to image sampling."
+     }
+    ],
+    "latent_image": [
+     "LATENT",
+     {
+      "tooltip": "The latent image to denoise."
+     }
+    ],
+    "model": [
+     "MODEL",
+     {
+      "tooltip": "The model used for denoising the input latent."
+     }
+    ],
+    "negative": [
+     "CONDITIONING",
+     {
+      "tooltip": "The conditioning describing the attributes you want to exclude from the image."
+     }
+    ],
+    "positive": [
+     "CONDITIONING",
+     {
+      "tooltip": "The conditioning describing the attributes you want to include in the image."
+     }
+    ],
+    "sampler_name": [
+     [
+      "euler",
+      "euler_cfg_pp",
+      "euler_ancestral",
+      "euler_ancestral_cfg_pp",
+      "heun",
+      "heunpp2",
+      "exp_heun_2_x0",
+      "exp_heun_2_x0_sde",
+      "dpm_2",
+      "dpm_2_ancestral",
+      "lms",
+      "dpm_fast",
+      "dpm_adaptive",
+      "dpmpp_2s_ancestral",
+      "dpmpp_2s_ancestral_cfg_pp",
+      "dpmpp_sde",
+      "dpmpp_sde_gpu",
+      "dpmpp_2m",
+      "dpmpp_2m_cfg_pp",
+      "dpmpp_2m_sde",
+      "dpmpp_2m_sde_gpu",
+      "dpmpp_2m_sde_heun",
+      "dpmpp_2m_sde_heun_gpu",
+      "dpmpp_3m_sde",
+      "dpmpp_3m_sde_gpu",
+      "ddpm",
+      "lcm",
+      "ipndm",
+      "ipndm_v",
+      "deis",
+      "cfgpp_ud10_ab",
+      "res_multistep",
+      "res_multistep_cfg_pp",
+      "res_multistep_ancestral",
+      "res_multistep_ancestral_cfg_pp",
+      "gradient_estimation",
+      "gradient_estimation_cfg_pp",
+      "er_sde",
+      "seeds_2",
+      "seeds_3",
+      "sa_solver",
+      "sa_solver_pece",
+      "ddim",
+      "uni_pc",
+      "uni_pc_bh2"
+     ],
+     {
+      "tooltip": "The algorithm used when sampling, this can affect the quality, speed, and style of the generated output."
+     }
+    ],
+    "scheduler": [
+     [
+      "simple",
+      "sgm_uniform",
+      "karras",
+      "exponential",
+      "ddim_uniform",
+      "beta",
+      "normal",
+      "linear_quadratic",
+      "kl_optimal"
+     ],
+     {
+      "tooltip": "The scheduler controls how noise is gradually removed to form the image."
+     }
+    ],
+    "seed": [
+     "INT",
+     {
+      "control_after_generate": true,
+      "default": 0,
+      "max": 18446744073709551615,
+      "min": 0,
+      "tooltip": "The random seed used for creating the noise."
+     }
+    ],
+    "steps": [
+     "INT",
+     {
+      "default": 20,
+      "max": 10000,
+      "min": 1,
+      "tooltip": "The number of steps used in the denoising process."
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "model",
+    "seed",
+    "steps",
+    "cfg",
+    "sampler_name",
+    "scheduler",
+    "positive",
+    "negative",
+    "latent_image",
+    "denoise"
+   ]
+  },
+  "is_input_list": false,
+  "name": "KSampler",
+  "output": [
+   "LATENT"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "LATENT"
+  ],
+  "output_node": false,
+  "output_tooltips": [
+   "The denoised latent."
+  ],
+  "python_module": "nodes",
+  "search_aliases": [
+   "sampler",
+   "sample",
+   "generate",
+   "denoise",
+   "diffuse",
+   "txt2img",
+   "img2img"
+  ]
+ },
+ "LoadBackgroundRemovalModel": {
+  "api_node": false,
+  "category": "model/loaders",
+  "deprecated": false,
+  "description": "",
+  "dev_only": false,
+  "display_name": "Load Background Removal Model",
+  "essentials_category": null,
+  "experimental": false,
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "bg_removal_name": [
+     "COMBO",
+     {
+      "multiselect": false,
+      "options": [],
+      "tooltip": "The model used to remove backgrounds from images"
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "bg_removal_name"
+   ]
+  },
+  "is_input_list": false,
+  "name": "LoadBackgroundRemovalModel",
+  "output": [
+   "BACKGROUND_REMOVAL"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_matchtypes": null,
+  "output_name": [
+   "bg_model"
+  ],
+  "output_node": false,
+  "output_tooltips": [
+   null
+  ],
+  "price_badge": null,
+  "python_module": "comfy_extras.nodes_bg_removal",
+  "search_aliases": null
+ },
+ "LoadImage": {
+  "category": "image",
+  "description": "",
+  "display_name": "Load Image",
+  "essentials_category": "Basics",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "image": [
+     [],
+     {
+      "image_upload": true
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "image"
+   ]
+  },
+  "is_input_list": false,
+  "name": "LoadImage",
+  "output": [
+   "IMAGE",
+   "MASK"
+  ],
+  "output_is_list": [
+   false,
+   false
+  ],
+  "output_name": [
+   "IMAGE",
+   "MASK"
+  ],
+  "output_node": false,
+  "python_module": "nodes",
+  "search_aliases": [
+   "load image",
+   "open image",
+   "import image",
+   "image input",
+   "upload image",
+   "read image",
+   "image loader"
+  ]
+ },
+ "LoraLoaderModelOnly": {
+  "category": "model/loaders",
+  "description": "This LoRAs loader is used to modify the diffusion model, altering the way in which latents are denoised such as applying styles. Multiple LoRA nodes can be linked together.",
+  "display_name": "Load LoRA",
+  "essentials_category": "Image Generation",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "lora_name": [
+     []
+    ],
+    "model": [
+     "MODEL"
+    ],
+    "strength_model": [
+     "FLOAT",
+     {
+      "default": 1.0,
+      "max": 100.0,
+      "min": -100.0,
+      "step": 0.01
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "model",
+    "lora_name",
+    "strength_model"
+   ]
+  },
+  "is_input_list": false,
+  "name": "LoraLoaderModelOnly",
+  "output": [
+   "MODEL"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "MODEL"
+  ],
+  "output_node": false,
+  "output_tooltips": [
+   "The modified diffusion model.",
+   "The modified CLIP model."
+  ],
+  "python_module": "nodes",
+  "search_aliases": [
+   "lora",
+   "load lora",
+   "apply lora",
+   "lora loader",
+   "lora model"
+  ]
+ },
+ "ModelSamplingAuraFlow": {
+  "category": "model/patch",
+  "description": "",
+  "display_name": "ModelSamplingAuraFlow",
+  "has_intermediate_output": false,
+  "input": {
+   "optional": {
+    "sampling": [
+     [
+      "flow",
+      "img_to_img_velocity"
+     ],
+     {
+      "advanced": true,
+      "default": "flow"
+     }
+    ]
+   },
+   "required": {
+    "model": [
+     "MODEL"
+    ],
+    "shift": [
+     "FLOAT",
+     {
+      "default": 1.73,
+      "max": 100.0,
+      "min": 0.0,
+      "step": 0.01
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "optional": [
+    "sampling"
+   ],
+   "required": [
+    "model",
+    "shift"
+   ]
+  },
+  "is_input_list": false,
+  "name": "ModelSamplingAuraFlow",
+  "output": [
+   "MODEL"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "MODEL"
+  ],
+  "output_node": false,
+  "python_module": "comfy_extras.nodes_model_advanced",
+  "search_aliases": []
+ },
+ "PreviewImage": {
+  "category": "image",
+  "description": "Preview the images without saving them to the ComfyUI output directory.",
+  "display_name": "Preview Image",
+  "essentials_category": "Basics",
+  "has_intermediate_output": false,
+  "input": {
+   "hidden": {
+    "extra_pnginfo": "EXTRA_PNGINFO",
+    "prompt": "PROMPT"
+   },
+   "required": {
+    "images": [
+     "IMAGE"
+    ]
+   }
+  },
+  "input_order": {
+   "hidden": [
+    "prompt",
+    "extra_pnginfo"
+   ],
+   "required": [
+    "images"
+   ]
+  },
+  "is_input_list": false,
+  "name": "PreviewImage",
+  "output": [
+   "IMAGE"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "images"
+  ],
+  "output_node": true,
+  "python_module": "nodes",
+  "search_aliases": [
+   "preview",
+   "preview image",
+   "show image",
+   "view image",
+   "display image",
+   "image viewer"
+  ]
+ },
+ "PrimitiveStringMultiline": {
+  "api_node": false,
+  "category": "utilities/primitive",
+  "deprecated": false,
+  "description": "",
+  "dev_only": false,
+  "display_name": "Text (Multiline)",
+  "essentials_category": "Basics",
+  "experimental": false,
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "value": [
+     "STRING",
+     {
+      "multiline": true
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "value"
+   ]
+  },
+  "is_input_list": false,
+  "name": "PrimitiveStringMultiline",
+  "output": [
+   "STRING"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_matchtypes": null,
+  "output_name": [
+   "STRING"
+  ],
+  "output_node": false,
+  "output_tooltips": [
+   null
+  ],
+  "price_badge": null,
+  "python_module": "comfy_extras.nodes_primitive",
+  "search_aliases": [
+   "text",
+   "string",
+   "text box",
+   "prompt"
+  ]
+ },
+ "RemoveBackground": {
+  "api_node": false,
+  "category": "image/background removal",
+  "deprecated": false,
+  "description": "Generates a foreground mask to remove the background from an image using a background removal model.",
+  "dev_only": false,
+  "display_name": "Remove Background",
+  "essentials_category": null,
+  "experimental": false,
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "bg_removal_model": [
+     "BACKGROUND_REMOVAL",
+     {
+      "tooltip": "Background removal model used to generate the mask"
+     }
+    ],
+    "image": [
+     "IMAGE",
+     {
+      "tooltip": "Input image to remove the background from"
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "bg_removal_model",
+    "image"
+   ]
+  },
+  "is_input_list": false,
+  "name": "RemoveBackground",
+  "output": [
+   "MASK"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_matchtypes": null,
+  "output_name": [
+   "mask"
+  ],
+  "output_node": false,
+  "output_tooltips": [
+   "Generated foreground mask"
+  ],
+  "price_badge": null,
+  "python_module": "comfy_extras.nodes_bg_removal",
+  "search_aliases": null
+ },
+ "SAM3_Detect": {
+  "api_node": false,
+  "category": "image/detection",
+  "deprecated": false,
+  "description": "",
+  "dev_only": false,
+  "display_name": "SAM3 Detect",
+  "essentials_category": null,
+  "experimental": false,
+  "has_intermediate_output": false,
+  "input": {
+   "optional": {
+    "bboxes": [
+     "BOUNDING_BOX",
+     {
+      "default": {
+       "height": 512,
+       "width": 512,
+       "x": 0,
+       "y": 0
+      },
+      "display_name": "bboxes",
+      "forceInput": true,
+      "socketless": true,
+      "tooltip": "Bounding boxes to segment within"
+     }
+    ],
+    "conditioning": [
+     "CONDITIONING",
+     {
+      "display_name": "conditioning",
+      "tooltip": "Text conditioning from CLIPTextEncode"
+     }
+    ],
+    "negative_coords": [
+     "STRING",
+     {
+      "display_name": "negative_coords",
+      "forceInput": true,
+      "multiline": false,
+      "tooltip": "Negative point prompts as JSON [{\"x\": int, \"y\": int}, ...] (pixel coords)"
+     }
+    ],
+    "positive_coords": [
+     "STRING",
+     {
+      "display_name": "positive_coords",
+      "forceInput": true,
+      "multiline": false,
+      "tooltip": "Positive point prompts as JSON [{\"x\": int, \"y\": int}, ...] (pixel coords)"
+     }
+    ]
+   },
+   "required": {
+    "image": [
+     "IMAGE",
+     {
+      "display_name": "image"
+     }
+    ],
+    "individual_masks": [
+     "BOOLEAN",
+     {
+      "default": false,
+      "display_name": "individual_masks",
+      "tooltip": "Output per-object masks instead of union"
+     }
+    ],
+    "model": [
+     "MODEL",
+     {
+      "display_name": "model"
+     }
+    ],
+    "refine_iterations": [
+     "INT",
+     {
+      "default": 2,
+      "display_name": "refine_iterations",
+      "max": 5,
+      "min": 0,
+      "tooltip": "SAM decoder refinement passes (0=use raw detector masks)"
+     }
+    ],
+    "threshold": [
+     "FLOAT",
+     {
+      "default": 0.5,
+      "display_name": "threshold",
+      "max": 1.0,
+      "min": 0.0,
+      "step": 0.01
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "optional": [
+    "conditioning",
+    "bboxes",
+    "positive_coords",
+    "negative_coords"
+   ],
+   "required": [
+    "model",
+    "image",
+    "threshold",
+    "refine_iterations",
+    "individual_masks"
+   ]
+  },
+  "is_input_list": false,
+  "name": "SAM3_Detect",
+  "output": [
+   "MASK",
+   "BOUNDING_BOX"
+  ],
+  "output_is_list": [
+   false,
+   false
+  ],
+  "output_matchtypes": null,
+  "output_name": [
+   "masks",
+   "bboxes"
+  ],
+  "output_node": false,
+  "output_tooltips": [
+   null,
+   null
+  ],
+  "price_badge": null,
+  "python_module": "comfy_extras.nodes_sam3",
+  "search_aliases": [
+   "sam3",
+   "segment anything",
+   "open vocabulary",
+   "text detection",
+   "segment"
+  ]
+ },
+ "SaveImage": {
+  "category": "image",
+  "description": "Saves the input images to your ComfyUI output directory.",
+  "display_name": "Save Image",
+  "essentials_category": "Basics",
+  "has_intermediate_output": false,
+  "input": {
+   "hidden": {
+    "extra_pnginfo": "EXTRA_PNGINFO",
+    "prompt": "PROMPT"
+   },
+   "required": {
+    "filename_prefix": [
+     "STRING",
+     {
+      "default": "ComfyUI",
+      "tooltip": "The prefix for the file to save. This may include formatting information such as %date:yyyy-MM-dd% or %Empty Latent Image.width% to include values from nodes."
+     }
+    ],
+    "images": [
+     "IMAGE",
+     {
+      "tooltip": "The images to save."
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "hidden": [
+    "prompt",
+    "extra_pnginfo"
+   ],
+   "required": [
+    "images",
+    "filename_prefix"
+   ]
+  },
+  "is_input_list": false,
+  "name": "SaveImage",
+  "output": [
+   "IMAGE"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "images"
+  ],
+  "output_node": true,
+  "python_module": "nodes",
+  "search_aliases": [
+   "save",
+   "save image",
+   "export image",
+   "output image",
+   "write image",
+   "download"
+  ]
+ },
+ "SeeThrough_GenerateDepth": {
+  "category": "SeeThrough",
+  "description": "",
+  "display_name": "SeeThrough_GenerateDepth",
+  "has_intermediate_output": false,
+  "input": {
+   "optional": {
+    "resolution_depth": [
+     "INT",
+     {
+      "default": -1,
+      "max": 2048,
+      "min": -1,
+      "step": 64
+     }
+    ]
+   },
+   "required": {
+    "depth_model": [
+     "SEETHROUGH_DEPTH_MODEL"
+    ],
+    "layers": [
+     "SEETHROUGH_LAYERS"
+    ],
+    "seed": [
+     "INT",
+     {
+      "default": 42,
+      "max": 4294967295,
+      "min": 0
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "optional": [
+    "resolution_depth"
+   ],
+   "required": [
+    "layers",
+    "depth_model",
+    "seed"
+   ]
+  },
+  "is_input_list": false,
+  "name": "SeeThrough_GenerateDepth",
+  "output": [
+   "SEETHROUGH_LAYERS_DEPTH",
+   "IMAGE"
+  ],
+  "output_is_list": [
+   false,
+   false
+  ],
+  "output_name": [
+   "layers_depth",
+   "preview"
+  ],
+  "output_node": false,
+  "python_module": "custom_nodes.seethrough_stub",
+  "search_aliases": []
+ },
+ "SeeThrough_GenerateLayers": {
+  "category": "SeeThrough",
+  "description": "",
+  "display_name": "SeeThrough_GenerateLayers",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "image": [
+     "IMAGE"
+    ],
+    "layerdiff_model": [
+     "SEETHROUGH_LAYERDIFF_MODEL"
+    ],
+    "num_inference_steps": [
+     "INT",
+     {
+      "default": 30,
+      "max": 100,
+      "min": 1
+     }
+    ],
+    "resolution": [
+     "INT",
+     {
+      "default": 1280,
+      "max": 2048,
+      "min": 512,
+      "step": 64
+     }
+    ],
+    "seed": [
+     "INT",
+     {
+      "default": 42,
+      "max": 4294967295,
+      "min": 0
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "image",
+    "layerdiff_model",
+    "seed",
+    "resolution",
+    "num_inference_steps"
+   ]
+  },
+  "is_input_list": false,
+  "name": "SeeThrough_GenerateLayers",
+  "output": [
+   "SEETHROUGH_LAYERS",
+   "IMAGE"
+  ],
+  "output_is_list": [
+   false,
+   false
+  ],
+  "output_name": [
+   "layers",
+   "preview"
+  ],
+  "output_node": false,
+  "python_module": "custom_nodes.seethrough_stub",
+  "search_aliases": []
+ },
+ "SeeThrough_LoadDepthModel": {
+  "category": "SeeThrough",
+  "description": "",
+  "display_name": "SeeThrough_LoadDepthModel",
+  "has_intermediate_output": false,
+  "input": {
+   "optional": {
+    "auto_download": [
+     "BOOLEAN",
+     {
+      "default": true
+     }
+    ],
+    "cache_tag_embeds": [
+     "BOOLEAN",
+     {
+      "default": true
+     }
+    ],
+    "group_offload": [
+     "BOOLEAN",
+     {
+      "default": false
+     }
+    ],
+    "quant_mode": [
+     [
+      "none",
+      "nf4"
+     ],
+     {
+      "default": "none"
+     }
+    ]
+   },
+   "required": {
+    "model": [
+     [
+      "layerdifforg/seethroughv0.0.1_marigold",
+      "24yearsold/seethroughv0.0.1_marigold_nf4"
+     ],
+     {
+      "default": "layerdifforg/seethroughv0.0.1_marigold"
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "optional": [
+    "quant_mode",
+    "cache_tag_embeds",
+    "group_offload",
+    "auto_download"
+   ],
+   "required": [
+    "model"
+   ]
+  },
+  "is_input_list": false,
+  "name": "SeeThrough_LoadDepthModel",
+  "output": [
+   "SEETHROUGH_DEPTH_MODEL"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "depth_model"
+  ],
+  "output_node": false,
+  "python_module": "custom_nodes.seethrough_stub",
+  "search_aliases": []
+ },
+ "SeeThrough_LoadLayerDiffModel": {
+  "category": "SeeThrough",
+  "description": "",
+  "display_name": "SeeThrough_LoadLayerDiffModel",
+  "has_intermediate_output": false,
+  "input": {
+   "optional": {
+    "auto_download": [
+     "BOOLEAN",
+     {
+      "default": true
+     }
+    ],
+    "cache_tag_embeds": [
+     "BOOLEAN",
+     {
+      "default": true
+     }
+    ],
+    "group_offload": [
+     "BOOLEAN",
+     {
+      "default": false
+     }
+    ],
+    "quant_mode": [
+     [
+      "none",
+      "nf4"
+     ],
+     {
+      "default": "none"
+     }
+    ],
+    "unet_ckpt": [
+     "STRING",
+     {
+      "default": ""
+     }
+    ],
+    "vae_ckpt": [
+     "STRING",
+     {
+      "default": ""
+     }
+    ]
+   },
+   "required": {
+    "model": [
+     [
+      "layerdifforg/seethroughv0.0.2_layerdiff3d",
+      "24yearsold/seethroughv0.0.2_layerdiff3d_nf4"
+     ],
+     {
+      "default": "layerdifforg/seethroughv0.0.2_layerdiff3d"
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "optional": [
+    "vae_ckpt",
+    "unet_ckpt",
+    "quant_mode",
+    "cache_tag_embeds",
+    "group_offload",
+    "auto_download"
+   ],
+   "required": [
+    "model"
+   ]
+  },
+  "is_input_list": false,
+  "name": "SeeThrough_LoadLayerDiffModel",
+  "output": [
+   "SEETHROUGH_LAYERDIFF_MODEL"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "layerdiff_model"
+  ],
+  "output_node": false,
+  "python_module": "custom_nodes.seethrough_stub",
+  "search_aliases": []
+ },
+ "SeeThrough_PartsToLayers": {
+  "category": "SeeThrough",
+  "description": "",
+  "display_name": "SeeThrough_PartsToLayers",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "parts": [
+     "SEETHROUGH_PARTS"
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "parts"
+   ]
+  },
+  "is_input_list": false,
+  "name": "SeeThrough_PartsToLayers",
+  "output": [
+   "LAYERS"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "layers"
+  ],
+  "output_node": false,
+  "python_module": "custom_nodes.seethrough_stub",
+  "search_aliases": []
+ },
+ "SeeThrough_PostProcess": {
+  "category": "SeeThrough",
+  "description": "",
+  "display_name": "SeeThrough_PostProcess",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "layers_depth": [
+     "SEETHROUGH_LAYERS_DEPTH"
+    ],
+    "tblr_split": [
+     "BOOLEAN",
+     {
+      "default": true
+     }
+    ],
+    "use_lama": [
+     "BOOLEAN",
+     {
+      "default": true
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "layers_depth",
+    "tblr_split",
+    "use_lama"
+   ]
+  },
+  "is_input_list": false,
+  "name": "SeeThrough_PostProcess",
+  "output": [
+   "SEETHROUGH_PARTS",
+   "IMAGE"
+  ],
+  "output_is_list": [
+   false,
+   false
+  ],
+  "output_name": [
+   "parts",
+   "preview"
+  ],
+  "output_node": false,
+  "python_module": "custom_nodes.seethrough_stub",
+  "search_aliases": []
+ },
+ "SeeThrough_SavePSD": {
+  "category": "SeeThrough",
+  "description": "",
+  "display_name": "SeeThrough_SavePSD",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "filename_prefix": [
+     "STRING",
+     {
+      "default": "seethrough"
+     }
+    ],
+    "parts": [
+     "SEETHROUGH_PARTS"
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "parts",
+    "filename_prefix"
+   ]
+  },
+  "is_input_list": false,
+  "name": "SeeThrough_SavePSD",
+  "output": [
+   "STRING"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "info_file"
+  ],
+  "output_node": true,
+  "python_module": "custom_nodes.seethrough_stub",
+  "search_aliases": []
+ },
+ "StandRigLayersToPSD": {
+  "category": "StandRig",
+  "description": "",
+  "display_name": "StandRig Layers To PSD",
+  "has_intermediate_output": false,
+  "input": {
+   "optional": {
+    "add_reference_layer": [
+     "BOOLEAN",
+     {
+      "default": false,
+      "tooltip": "Add the flat source as a hidden top layer 'Reference/source'."
+     }
+    ],
+    "extra_layers": [
+     "LAYERS"
+    ],
+    "extra_layers_2": [
+     "LAYERS"
+    ],
+    "source_image": [
+     "IMAGE"
+    ]
+   },
+   "required": {
+    "filename": [
+     "STRING",
+     {
+      "default": "character"
+     }
+    ],
+    "fit_mode": [
+     [
+      "auto",
+      "none",
+      "unpad_to_source"
+     ],
+     {
+      "default": "auto"
+     }
+    ],
+    "layers": [
+     "LAYERS"
+    ],
+    "min_alpha_pixels": [
+     "INT",
+     {
+      "default": 16,
+      "max": 100000,
+      "min": 0,
+      "tooltip": "Drop layers with fewer visible pixels (StandRig rejects empty layers)."
+     }
+    ],
+    "project": [
+     "STRING",
+     {
+      "default": "my_character"
+     }
+    ],
+    "rename_parts": [
+     "BOOLEAN",
+     {
+      "default": true,
+      "tooltip": "See-through tags -> readable names (L/R = character's left/right)."
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "optional": [
+    "source_image",
+    "extra_layers",
+    "extra_layers_2",
+    "add_reference_layer"
+   ],
+   "required": [
+    "layers",
+    "project",
+    "filename",
+    "fit_mode",
+    "rename_parts",
+    "min_alpha_pixels"
+   ]
+  },
+  "is_input_list": false,
+  "name": "StandRigLayersToPSD",
+  "output": [
+   "STRING",
+   "IMAGE",
+   "STRING"
+  ],
+  "output_is_list": [
+   false,
+   false,
+   false
+  ],
+  "output_name": [
+   "psd_path",
+   "preview",
+   "layer_report"
+  ],
+  "output_node": true,
+  "python_module": "custom_nodes.ComfyUI-StandRig-Bridge",
+  "search_aliases": []
+ },
+ "StandRigMasksToLayers": {
+  "category": "StandRig",
+  "description": "",
+  "display_name": "StandRig Masks To Layers",
+  "has_intermediate_output": false,
+  "input": {
+   "optional": {
+    "subject_alpha": [
+     "MASK"
+    ]
+   },
+   "required": {
+    "add_remainder": [
+     "BOOLEAN",
+     {
+      "default": true,
+      "tooltip": "Put pixels no mask claimed into a bottom 'Body (rest)' layer."
+     }
+    ],
+    "exclusive": [
+     "BOOLEAN",
+     {
+      "default": true,
+      "tooltip": "Earlier names win overlapping pixels (list top-most parts first)."
+     }
+    ],
+    "image": [
+     "IMAGE"
+    ],
+    "masks": [
+     "MASK"
+    ],
+    "names": [
+     "STRING",
+     {
+      "forceInput": true
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "optional": [
+    "subject_alpha"
+   ],
+   "required": [
+    "image",
+    "masks",
+    "names",
+    "exclusive",
+    "add_remainder"
+   ]
+  },
+  "is_input_list": true,
+  "name": "StandRigMasksToLayers",
+  "output": [
+   "LAYERS"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "layers"
+  ],
+  "output_node": false,
+  "python_module": "custom_nodes.ComfyUI-StandRig-Bridge",
+  "search_aliases": []
+ },
+ "StandRigPinManifest": {
+  "category": "StandRig",
+  "description": "",
+  "display_name": "StandRig Pin Manifest (after import)",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "manifest_path": [
+     "STRING",
+     {
+      "default": "",
+      "forceInput": false
+     }
+    ],
+    "standrig_url": [
+     "STRING",
+     {
+      "default": "http://127.0.0.1:5180"
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "manifest_path",
+    "standrig_url"
+   ]
+  },
+  "is_input_list": false,
+  "name": "StandRigPinManifest",
+  "output": [
+   "STRING"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "status"
+  ],
+  "output_node": true,
+  "python_module": "custom_nodes.ComfyUI-StandRig-Bridge",
+  "search_aliases": []
+ },
+ "StandRigPosePrompts": {
+  "category": "StandRig",
+  "description": "",
+  "display_name": "StandRig Pose / Expression Prompts",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "body_pitch": [
+     "FLOAT",
+     {
+      "default": 8.0,
+      "max": 30,
+      "min": 2,
+      "step": 1
+     }
+    ],
+    "body_roll": [
+     "FLOAT",
+     {
+      "default": 8.0,
+      "max": 30,
+      "min": 2,
+      "step": 1
+     }
+    ],
+    "body_yaw": [
+     "FLOAT",
+     {
+      "default": 15.0,
+      "max": 45,
+      "min": 2,
+      "step": 1
+     }
+    ],
+    "expression_list": [
+     "STRING",
+     {
+      "default": "eyes-closed, eyes-smile, mouth-a, mouth-i, mouth-u, mouth-e, mouth-o, brows-angry, brows-sad",
+      "multiline": true,
+      "tooltip": "Expressions preset only. Available: eyes-closed, eyes-half, eyes-smile, mouth-a, mouth-i, mouth-u, mouth-e, mouth-o, mouth-smile, brows-angry, brows-sad, blush"
+     }
+    ],
+    "extra": [
+     "STRING",
+     {
+      "default": "",
+      "multiline": true,
+      "tooltip": "Appended to every prompt (style notes, outfit details)."
+     }
+    ],
+    "face_pitch": [
+     "FLOAT",
+     {
+      "default": 20.0,
+      "max": 45,
+      "min": 5,
+      "step": 1
+     }
+    ],
+    "face_roll": [
+     "FLOAT",
+     {
+      "default": 15.0,
+      "max": 45,
+      "min": 2,
+      "step": 1
+     }
+    ],
+    "face_yaw": [
+     "FLOAT",
+     {
+      "default": 30.0,
+      "max": 60,
+      "min": 5,
+      "step": 1
+     }
+    ],
+    "preset": [
+     [
+      "face_targets",
+      "body_targets",
+      "connection_targets",
+      "expressions_visemes",
+      "turnaround_multiangle_lora",
+      "turnaround_natural"
+     ],
+     {
+      "default": "face_targets"
+     }
+    ],
+    "roll_mode": [
+     [
+      "auto",
+      "rotate",
+      "ai"
+     ],
+     {
+      "default": "auto",
+      "tooltip": "auto = exact rotation for the head, AI edit for the body (legs must stay planted)."
+     }
+    ],
+    "subject": [
+     "STRING",
+     {
+      "default": "the character",
+      "tooltip": "How to call the character in prompts, e.g. 'the girl with silver twin tails'."
+     }
+    ],
+    "turnaround_shot": [
+     [
+      "medium shot",
+      "wide shot",
+      "close-up"
+     ],
+     {
+      "default": "wide shot"
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "preset",
+    "subject",
+    "face_yaw",
+    "face_pitch",
+    "face_roll",
+    "body_yaw",
+    "body_pitch",
+    "body_roll",
+    "roll_mode",
+    "expression_list",
+    "turnaround_shot",
+    "extra"
+   ]
+  },
+  "is_input_list": false,
+  "name": "StandRigPosePrompts",
+  "output": [
+   "STRING",
+   "STRING",
+   "STRING",
+   "STRING"
+  ],
+  "output_is_list": [
+   true,
+   true,
+   true,
+   false
+  ],
+  "output_name": [
+   "prompts",
+   "panel_ids",
+   "mask_prompts",
+   "plan_json"
+  ],
+  "output_node": false,
+  "python_module": "custom_nodes.ComfyUI-StandRig-Bridge",
+  "search_aliases": []
+ },
+ "StandRigPrepareCanvas": {
+  "category": "StandRig",
+  "description": "",
+  "display_name": "StandRig Prepare Canvas",
+  "has_intermediate_output": false,
+  "input": {
+   "optional": {
+    "foreground_mask": [
+     "MASK",
+     {
+      "tooltip": "1 = character. From Remove Background / SAM3."
+     }
+    ]
+   },
+   "required": {
+    "background": [
+     [
+      "white",
+      "light_gray",
+      "black"
+     ],
+     {
+      "default": "white"
+     }
+    ],
+    "image": [
+     "IMAGE"
+    ],
+    "long_side": [
+     "INT",
+     {
+      "default": 1536,
+      "max": 4096,
+      "min": 256,
+      "step": 16,
+      "tooltip": "Long side of the output canvas in pixels."
+     }
+    ],
+    "margin": [
+     "FLOAT",
+     {
+      "default": 0.06,
+      "max": 0.5,
+      "min": 0.0,
+      "step": 0.01,
+      "tooltip": "Empty border around the subject, as a fraction of its size."
+     }
+    ],
+    "multiple_of": [
+     "INT",
+     {
+      "default": 16,
+      "max": 128,
+      "min": 1
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "optional": [
+    "foreground_mask"
+   ],
+   "required": [
+    "image",
+    "long_side",
+    "margin",
+    "background",
+    "multiple_of"
+   ]
+  },
+  "is_input_list": false,
+  "name": "StandRigPrepareCanvas",
+  "output": [
+   "IMAGE",
+   "MASK",
+   "IMAGE"
+  ],
+  "output_is_list": [
+   false,
+   false,
+   false
+  ],
+  "output_name": [
+   "image",
+   "alpha",
+   "rgba"
+  ],
+  "output_node": false,
+  "python_module": "custom_nodes.ComfyUI-StandRig-Bridge",
+  "search_aliases": []
+ },
+ "StandRigReferenceSheet": {
+  "category": "StandRig",
+  "description": "",
+  "display_name": "StandRig Reference Sheet",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "columns": [
+     "INT",
+     {
+      "default": 0,
+      "max": 16,
+      "min": 0,
+      "tooltip": "0 = one row."
+     }
+    ],
+    "connection_crop": [
+     "BOOLEAN",
+     {
+      "default": true,
+      "tooltip": "Connections sheet: crop each panel to its body band (relative to the subject box)."
+     }
+    ],
+    "generated": [
+     "IMAGE"
+    ],
+    "labels": [
+     "BOOLEAN",
+     {
+      "default": true
+     }
+    ],
+    "neutral": [
+     "IMAGE"
+    ],
+    "panel_height": [
+     "INT",
+     {
+      "default": 768,
+      "max": 4096,
+      "min": 128,
+      "step": 16
+     }
+    ],
+    "panel_ids": [
+     "STRING",
+     {
+      "forceInput": true
+     }
+    ],
+    "plan_json": [
+     "STRING",
+     {
+      "forceInput": true
+     }
+    ],
+    "roll_pivot": [
+     [
+      "auto",
+      "bottom_center",
+      "center",
+      "hips"
+     ],
+     {
+      "default": "auto",
+      "tooltip": "auto: chin/neck (bottom centre) for face, hips for body."
+     }
+    ],
+    "sheet": [
+     [
+      "face",
+      "body",
+      "connections",
+      "expressions",
+      "turnaround"
+     ],
+     {
+      "default": "face"
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "sheet",
+    "neutral",
+    "generated",
+    "panel_ids",
+    "plan_json",
+    "panel_height",
+    "columns",
+    "labels",
+    "roll_pivot",
+    "connection_crop"
+   ]
+  },
+  "is_input_list": true,
+  "name": "StandRigReferenceSheet",
+  "output": [
+   "IMAGE",
+   "IMAGE",
+   "STANDRIG_SHEET"
+  ],
+  "output_is_list": [
+   false,
+   false,
+   false
+  ],
+  "output_name": [
+   "sheet_image",
+   "panels",
+   "sheet_data"
+  ],
+  "output_node": false,
+  "python_module": "custom_nodes.ComfyUI-StandRig-Bridge",
+  "search_aliases": []
+ },
+ "StandRigRegionCrop": {
+  "category": "StandRig",
+  "description": "",
+  "display_name": "StandRig Region Crop (close-up)",
+  "has_intermediate_output": false,
+  "input": {
+   "optional": {
+    "region_mask": [
+     "MASK"
+    ],
+    "subject_alpha": [
+     "MASK"
+    ]
+   },
+   "required": {
+    "fallback": [
+     [
+      "head_from_subject_top",
+      "center"
+     ],
+     {
+      "default": "head_from_subject_top"
+     }
+    ],
+    "head_fraction": [
+     "FLOAT",
+     {
+      "default": 0.24,
+      "max": 1.0,
+      "min": 0.05,
+      "step": 0.01,
+      "tooltip": "Fallback only: head height as a fraction of the subject height."
+     }
+    ],
+    "image": [
+     "IMAGE"
+    ],
+    "padding": [
+     "FLOAT",
+     {
+      "default": 0.45,
+      "max": 3.0,
+      "min": 0.0,
+      "step": 0.05,
+      "tooltip": "Extra context around the region (fraction of its size)."
+     }
+    ],
+    "size": [
+     "INT",
+     {
+      "default": 1024,
+      "max": 4096,
+      "min": 256,
+      "step": 16
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "optional": [
+    "region_mask",
+    "subject_alpha"
+   ],
+   "required": [
+    "image",
+    "padding",
+    "size",
+    "fallback",
+    "head_fraction"
+   ]
+  },
+  "is_input_list": false,
+  "name": "StandRigRegionCrop",
+  "output": [
+   "IMAGE",
+   "STANDRIG_CROP",
+   "MASK"
+  ],
+  "output_is_list": [
+   false,
+   false,
+   false
+  ],
+  "output_name": [
+   "crop",
+   "crop_info",
+   "region_mask_crop"
+  ],
+  "output_node": false,
+  "python_module": "custom_nodes.ComfyUI-StandRig-Bridge",
+  "search_aliases": []
+ },
+ "StandRigSaveReferencePack": {
+  "category": "StandRig",
+  "description": "",
+  "display_name": "StandRig Save Reference Pack + Manifest",
+  "has_intermediate_output": false,
+  "input": {
+   "optional": {
+    "body_sheet": [
+     "STANDRIG_SHEET"
+    ],
+    "connection_sheet": [
+     "STANDRIG_SHEET"
+    ],
+    "expression_sheet": [
+     "STANDRIG_SHEET"
+    ],
+    "face_sheet": [
+     "STANDRIG_SHEET"
+    ],
+    "notes": [
+     "STRING",
+     {
+      "default": "",
+      "multiline": true
+     }
+    ],
+    "psd_path": [
+     "STRING",
+     {
+      "forceInput": true
+     }
+    ],
+    "source_image": [
+     "IMAGE"
+    ],
+    "turnaround_sheet": [
+     "STANDRIG_SHEET"
+    ]
+   },
+   "required": {
+    "project": [
+     "STRING",
+     {
+      "default": "my_character"
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "optional": [
+    "face_sheet",
+    "body_sheet",
+    "connection_sheet",
+    "expression_sheet",
+    "turnaround_sheet",
+    "psd_path",
+    "source_image",
+    "notes"
+   ],
+   "required": [
+    "project"
+   ]
+  },
+  "is_input_list": false,
+  "name": "StandRigSaveReferencePack",
+  "output": [
+   "STRING"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "manifest_path"
+  ],
+  "output_node": true,
+  "python_module": "custom_nodes.ComfyUI-StandRig-Bridge",
+  "search_aliases": []
+ },
+ "StandRigStringList": {
+  "category": "StandRig",
+  "description": "",
+  "display_name": "StandRig String List",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "separator": [
+     [
+      "newline",
+      "comma"
+     ],
+     {
+      "default": "newline"
+     }
+    ],
+    "text": [
+     "STRING",
+     {
+      "default": "front hair\nface\neyes\nmouth\nneck\nbody",
+      "multiline": true
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "text",
+    "separator"
+   ]
+  },
+  "is_input_list": false,
+  "name": "StandRigStringList",
+  "output": [
+   "STRING"
+  ],
+  "output_is_list": [
+   true
+  ],
+  "output_name": [
+   "items"
+  ],
+  "output_node": false,
+  "python_module": "custom_nodes.ComfyUI-StandRig-Bridge",
+  "search_aliases": []
+ },
+ "StandRigTestFakeEdit": {
+  "category": "StandRig/test",
+  "description": "",
+  "display_name": "StandRigTestFakeEdit",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "image": [
+     "IMAGE"
+    ],
+    "prompt": [
+     "STRING",
+     {
+      "default": "",
+      "multiline": true
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "image",
+    "prompt"
+   ]
+  },
+  "is_input_list": false,
+  "name": "StandRigTestFakeEdit",
+  "output": [
+   "IMAGE"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "IMAGE"
+  ],
+  "output_node": false,
+  "python_module": "custom_nodes.standrig_test_nodes",
+  "search_aliases": []
+ },
+ "StandRigTestFakeRegionMask": {
+  "category": "StandRig/test",
+  "description": "",
+  "display_name": "StandRigTestFakeRegionMask",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "image": [
+     "IMAGE"
+    ],
+    "text": [
+     "STRING",
+     {
+      "default": "head"
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "image",
+    "text"
+   ]
+  },
+  "is_input_list": false,
+  "name": "StandRigTestFakeRegionMask",
+  "output": [
+   "MASK"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "MASK"
+  ],
+  "output_node": false,
+  "python_module": "custom_nodes.standrig_test_nodes",
+  "search_aliases": []
+ },
+ "StandRigVariantLayers": {
+  "category": "StandRig",
+  "description": "",
+  "display_name": "StandRig Variant Layers (expressions)",
+  "has_intermediate_output": false,
+  "input": {
+   "optional": {
+    "neutral_crop": [
+     "IMAGE"
+    ],
+    "region_masks": [
+     "MASK"
+    ]
+   },
+   "required": {
+    "crop_info": [
+     "STANDRIG_CROP"
+    ],
+    "diff_threshold": [
+     "FLOAT",
+     {
+      "default": 0.1,
+      "max": 1.0,
+      "min": 0.01,
+      "step": 0.01
+     }
+    ],
+    "feather_px": [
+     "INT",
+     {
+      "default": 3,
+      "max": 64,
+      "min": 0
+     }
+    ],
+    "group": [
+     "STRING",
+     {
+      "default": "Expressions"
+     }
+    ],
+    "grow_px": [
+     "INT",
+     {
+      "default": 8,
+      "max": 128,
+      "min": 0
+     }
+    ],
+    "mask_mode": [
+     [
+      "sam_or_difference",
+      "sam_mask",
+      "difference",
+      "sam_and_difference"
+     ],
+     {
+      "default": "sam_or_difference"
+     }
+    ],
+    "panel_ids": [
+     "STRING",
+     {
+      "forceInput": true
+     }
+    ],
+    "variants": [
+     "IMAGE"
+    ]
+   }
+  },
+  "input_order": {
+   "optional": [
+    "region_masks",
+    "neutral_crop"
+   ],
+   "required": [
+    "variants",
+    "panel_ids",
+    "crop_info",
+    "group",
+    "mask_mode",
+    "grow_px",
+    "feather_px",
+    "diff_threshold"
+   ]
+  },
+  "is_input_list": true,
+  "name": "StandRigVariantLayers",
+  "output": [
+   "LAYERS",
+   "IMAGE"
+  ],
+  "output_is_list": [
+   false,
+   false
+  ],
+  "output_name": [
+   "layers",
+   "preview"
+  ],
+  "output_node": false,
+  "python_module": "custom_nodes.ComfyUI-StandRig-Bridge",
+  "search_aliases": []
+ },
+ "TextEncodeQwenImageEditPlus": {
+  "api_node": false,
+  "category": "model/conditioning/qwen image",
+  "deprecated": false,
+  "description": "",
+  "dev_only": false,
+  "display_name": "Text Encode Qwen Image Edit Plus",
+  "essentials_category": null,
+  "experimental": false,
+  "has_intermediate_output": false,
+  "input": {
+   "optional": {
+    "image1": [
+     "IMAGE",
+     {}
+    ],
+    "image2": [
+     "IMAGE",
+     {}
+    ],
+    "image3": [
+     "IMAGE",
+     {}
+    ],
+    "vae": [
+     "VAE",
+     {}
+    ]
+   },
+   "required": {
+    "clip": [
+     "CLIP",
+     {}
+    ],
+    "prompt": [
+     "STRING",
+     {
+      "dynamicPrompts": true,
+      "multiline": true
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "optional": [
+    "vae",
+    "image1",
+    "image2",
+    "image3"
+   ],
+   "required": [
+    "clip",
+    "prompt"
+   ]
+  },
+  "is_input_list": false,
+  "name": "TextEncodeQwenImageEditPlus",
+  "output": [
+   "CONDITIONING"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_matchtypes": null,
+  "output_name": [
+   "CONDITIONING"
+  ],
+  "output_node": false,
+  "output_tooltips": [
+   null
+  ],
+  "price_badge": null,
+  "python_module": "comfy_extras.nodes_qwen",
+  "search_aliases": null
+ },
+ "UNETLoader": {
+  "category": "model/loaders",
+  "description": "",
+  "display_name": "Load Diffusion Model",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "unet_name": [
+     []
+    ],
+    "weight_dtype": [
+     [
+      "default",
+      "fp8_e4m3fn",
+      "fp8_e4m3fn_fast",
+      "fp8_e5m2"
+     ],
+     {
+      "advanced": true
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "unet_name",
+    "weight_dtype"
+   ]
+  },
+  "is_input_list": false,
+  "name": "UNETLoader",
+  "output": [
+   "MODEL"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "MODEL"
+  ],
+  "output_node": false,
+  "python_module": "nodes",
+  "search_aliases": []
+ },
+ "VAEDecode": {
+  "category": "model/latent",
+  "description": "Decodes latent images back into pixel space images.",
+  "display_name": "VAE Decode",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "samples": [
+     "LATENT",
+     {
+      "tooltip": "The latent to be decoded."
+     }
+    ],
+    "vae": [
+     "VAE",
+     {
+      "tooltip": "The VAE model used for decoding the latent."
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "samples",
+    "vae"
+   ]
+  },
+  "is_input_list": false,
+  "name": "VAEDecode",
+  "output": [
+   "IMAGE"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "IMAGE"
+  ],
+  "output_node": false,
+  "output_tooltips": [
+   "The decoded image."
+  ],
+  "python_module": "nodes",
+  "search_aliases": [
+   "decode",
+   "decode latent",
+   "latent to image",
+   "render latent"
+  ]
+ },
+ "VAEEncode": {
+  "category": "model/latent",
+  "description": "",
+  "display_name": "VAE Encode",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "pixels": [
+     "IMAGE"
+    ],
+    "vae": [
+     "VAE"
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "pixels",
+    "vae"
+   ]
+  },
+  "is_input_list": false,
+  "name": "VAEEncode",
+  "output": [
+   "LATENT"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "LATENT"
+  ],
+  "output_node": false,
+  "python_module": "nodes",
+  "search_aliases": [
+   "encode",
+   "encode image",
+   "image to latent"
+  ]
+ },
+ "VAELoader": {
+  "category": "model/loaders",
+  "description": "",
+  "display_name": "Load VAE",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "vae_name": [
+     []
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "vae_name"
+   ]
+  },
+  "is_input_list": false,
+  "name": "VAELoader",
+  "output": [
+   "VAE"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "VAE"
+  ],
+  "output_node": false,
+  "python_module": "nodes",
+  "search_aliases": []
+ }
+}

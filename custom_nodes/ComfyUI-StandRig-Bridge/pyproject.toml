@@ -1,0 +1,10 @@
+[project]
+name = "comfyui-standrig-bridge"
+description = "Generate StandRig-ready layered PSDs, pose/expression target sheets and reference manifests from a single 2D character image."
+version = "0.1.0"
+license = { text = "Apache-2.0" }
+dependencies = ["numpy", "pillow"]
+
+[tool.comfy]
+PublisherId = "standrig-bridge"
+DisplayName = "StandRig Bridge"

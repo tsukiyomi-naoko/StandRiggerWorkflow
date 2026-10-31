@@ -1,0 +1,862 @@
+{
+ "2": {
+  "class_type": "UNETLoader",
+  "inputs": {
+   "unet_name": "qwen_image_edit_2511_bf16.safetensors",
+   "weight_dtype": "default"
+  },
+  "_meta": {
+   "title": "UNETLoader"
+  }
+ },
+ "3": {
+  "class_type": "CLIPLoader",
+  "inputs": {
+   "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+   "type": "qwen_image",
+   "device": "default"
+  },
+  "_meta": {
+   "title": "CLIPLoader"
+  }
+ },
+ "4": {
+  "class_type": "VAELoader",
+  "inputs": {
+   "vae_name": "qwen_image_vae.safetensors"
+  },
+  "_meta": {
+   "title": "VAELoader"
+  }
+ },
+ "5": {
+  "class_type": "ModelSamplingAuraFlow",
+  "inputs": {
+   "model": [
+    "2",
+    0
+   ],
+   "shift": 3.1,
+   "sampling": "flow"
+  },
+  "_meta": {
+   "title": "ModelSamplingAuraFlow"
+  }
+ },
+ "6": {
+  "class_type": "CFGNorm",
+  "inputs": {
+   "model": [
+    "5",
+    0
+   ],
+   "strength": 1.0,
+   "pre_cfg": false
+  },
+  "_meta": {
+   "title": "CFGNorm"
+  }
+ },
+ "7": {
+  "class_type": "LoraLoaderModelOnly",
+  "inputs": {
+   "model": [
+    "6",
+    0
+   ],
+   "lora_name": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
+   "strength_model": 1.0
+  },
+  "_meta": {
+   "title": "Lightning 4-step LoRA"
+  }
+ },
+ "9": {
+  "class_type": "LoadImage",
+  "inputs": {
+   "image": "character.png"
+  },
+  "_meta": {
+   "title": "Load character picture"
+  }
+ },
+ "10": {
+  "class_type": "LoadBackgroundRemovalModel",
+  "inputs": {
+   "bg_removal_name": "birefnet.safetensors"
+  },
+  "_meta": {
+   "title": "LoadBackgroundRemovalModel"
+  }
+ },
+ "11": {
+  "class_type": "RemoveBackground",
+  "inputs": {
+   "bg_removal_model": [
+    "10",
+    0
+   ],
+   "image": [
+    "9",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "RemoveBackground"
+  }
+ },
+ "12": {
+  "class_type": "StandRigPrepareCanvas",
+  "inputs": {
+   "image": [
+    "9",
+    0
+   ],
+   "long_side": 1536,
+   "margin": 0.06,
+   "background": "white",
+   "multiple_of": 16,
+   "foreground_mask": [
+    "11",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "StandRigPrepareCanvas"
+  }
+ },
+ "13": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": "Redraw the character as a clean character model reference for Live2D rigging: full body, standing straight and facing the viewer directly, head level and looking at the viewer, eyes fully open, mouth closed in a neutral expression, arms relaxed and held slightly away from the torso so the sides of the body are visible, legs slightly apart, no props in the hands, nothing overlapping the face. Keep exactly the same character: same face, eye shape and eye color, hairstyle, hair color, outfit, accessories, line-art thickness, cel-shading style, color palette and lighting. Keep the same canvas size, framing and scale, and a plain flat white background. Do not add new objects, text, effects or shadows on the background."
+  },
+  "_meta": {
+   "title": "Normalize-pose prompt"
+  }
+ },
+ "14": {
+  "class_type": "FluxKontextImageScale",
+  "inputs": {
+   "image": [
+    "12",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "FluxKontextImageScale"
+  }
+ },
+ "15": {
+  "class_type": "TextEncodeQwenImageEditPlus",
+  "inputs": {
+   "clip": [
+    "3",
+    0
+   ],
+   "prompt": [
+    "13",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ],
+   "image1": [
+    "14",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Edit prompt normalize"
+  }
+ },
+ "16": {
+  "class_type": "TextEncodeQwenImageEditPlus",
+  "inputs": {
+   "clip": [
+    "3",
+    0
+   ],
+   "prompt": "",
+   "vae": [
+    "4",
+    0
+   ],
+   "image1": [
+    "14",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Negative (empty)"
+  }
+ },
+ "17": {
+  "class_type": "FluxKontextMultiReferenceLatentMethod",
+  "inputs": {
+   "conditioning": [
+    "15",
+    0
+   ],
+   "reference_latents_method": "index_timestep_zero"
+  },
+  "_meta": {
+   "title": "FluxKontextMultiReferenceLatentMethod"
+  }
+ },
+ "18": {
+  "class_type": "FluxKontextMultiReferenceLatentMethod",
+  "inputs": {
+   "conditioning": [
+    "16",
+    0
+   ],
+   "reference_latents_method": "index_timestep_zero"
+  },
+  "_meta": {
+   "title": "FluxKontextMultiReferenceLatentMethod"
+  }
+ },
+ "19": {
+  "class_type": "VAEEncode",
+  "inputs": {
+   "pixels": [
+    "14",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "VAEEncode"
+  }
+ },
+ "20": {
+  "class_type": "KSampler",
+  "inputs": {
+   "model": [
+    "7",
+    0
+   ],
+   "seed": 20261031,
+   "steps": 4,
+   "cfg": 1.0,
+   "sampler_name": "euler",
+   "scheduler": "simple",
+   "positive": [
+    "17",
+    0
+   ],
+   "negative": [
+    "18",
+    0
+   ],
+   "latent_image": [
+    "19",
+    0
+   ],
+   "denoise": 1.0
+  },
+  "_meta": {
+   "title": "KSampler"
+  }
+ },
+ "21": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "20",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "VAEDecode"
+  }
+ },
+ "22": {
+  "class_type": "ComfySwitchNode",
+  "inputs": {
+   "switch": false,
+   "on_false": [
+    "12",
+    0
+   ],
+   "on_true": [
+    "21",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Normalize pose? (switch)"
+  }
+ },
+ "23": {
+  "class_type": "StandRigPrepareCanvas",
+  "inputs": {
+   "image": [
+    "22",
+    0
+   ],
+   "long_side": 1536,
+   "margin": 0.06,
+   "background": "white",
+   "multiple_of": 16
+  },
+  "_meta": {
+   "title": "Source canvas"
+  }
+ },
+ "24": {
+  "class_type": "PreviewImage",
+  "inputs": {
+   "images": [
+    "23",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Source canvas"
+  }
+ },
+ "25": {
+  "class_type": "CheckpointLoaderSimple",
+  "inputs": {
+   "ckpt_name": "sam3.1_multiplex_fp16.safetensors"
+  },
+  "_meta": {
+   "title": "SAM3.1 (segmentation)"
+  }
+ },
+ "26": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "text": "head",
+   "clip": [
+    "25",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "SAM3 text prompt"
+  }
+ },
+ "27": {
+  "class_type": "SAM3_Detect",
+  "inputs": {
+   "model": [
+    "25",
+    0
+   ],
+   "image": [
+    "23",
+    0
+   ],
+   "threshold": 0.4,
+   "refine_iterations": 2,
+   "individual_masks": false,
+   "conditioning": [
+    "26",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "SAM3_Detect"
+  }
+ },
+ "28": {
+  "class_type": "StandRigRegionCrop",
+  "inputs": {
+   "image": [
+    "23",
+    0
+   ],
+   "padding": 0.45,
+   "size": 1024,
+   "fallback": "head_from_subject_top",
+   "head_fraction": 0.24,
+   "region_mask": [
+    "27",
+    0
+   ],
+   "subject_alpha": [
+    "12",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "StandRigRegionCrop"
+  }
+ },
+ "29": {
+  "class_type": "PreviewImage",
+  "inputs": {
+   "images": [
+    "28",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Face close-up"
+  }
+ },
+ "31": {
+  "class_type": "StandRigPosePrompts",
+  "inputs": {
+   "preset": "expressions_visemes",
+   "subject": "the character",
+   "face_yaw": 30.0,
+   "face_pitch": 20.0,
+   "face_roll": 15.0,
+   "body_yaw": 15.0,
+   "body_pitch": 8.0,
+   "body_roll": 8.0,
+   "roll_mode": "auto",
+   "expression_list": "eyes-closed, eyes-smile, mouth-a, mouth-i, mouth-u, mouth-e, mouth-o, brows-angry, brows-sad",
+   "turnaround_shot": "wide shot",
+   "extra": ""
+  },
+  "_meta": {
+   "title": "Prompts · expressions_visemes"
+  }
+ },
+ "32": {
+  "class_type": "FluxKontextImageScale",
+  "inputs": {
+   "image": [
+    "28",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "FluxKontextImageScale"
+  }
+ },
+ "33": {
+  "class_type": "TextEncodeQwenImageEditPlus",
+  "inputs": {
+   "clip": [
+    "3",
+    0
+   ],
+   "prompt": [
+    "31",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ],
+   "image1": [
+    "32",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Edit prompt · expressions"
+  }
+ },
+ "34": {
+  "class_type": "TextEncodeQwenImageEditPlus",
+  "inputs": {
+   "clip": [
+    "3",
+    0
+   ],
+   "prompt": "",
+   "vae": [
+    "4",
+    0
+   ],
+   "image1": [
+    "32",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Negative (empty)"
+  }
+ },
+ "35": {
+  "class_type": "FluxKontextMultiReferenceLatentMethod",
+  "inputs": {
+   "conditioning": [
+    "33",
+    0
+   ],
+   "reference_latents_method": "index_timestep_zero"
+  },
+  "_meta": {
+   "title": "FluxKontextMultiReferenceLatentMethod"
+  }
+ },
+ "36": {
+  "class_type": "FluxKontextMultiReferenceLatentMethod",
+  "inputs": {
+   "conditioning": [
+    "34",
+    0
+   ],
+   "reference_latents_method": "index_timestep_zero"
+  },
+  "_meta": {
+   "title": "FluxKontextMultiReferenceLatentMethod"
+  }
+ },
+ "37": {
+  "class_type": "VAEEncode",
+  "inputs": {
+   "pixels": [
+    "32",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "VAEEncode"
+  }
+ },
+ "38": {
+  "class_type": "KSampler",
+  "inputs": {
+   "model": [
+    "7",
+    0
+   ],
+   "seed": 20261031,
+   "steps": 4,
+   "cfg": 1.0,
+   "sampler_name": "euler",
+   "scheduler": "simple",
+   "positive": [
+    "35",
+    0
+   ],
+   "negative": [
+    "36",
+    0
+   ],
+   "latent_image": [
+    "37",
+    0
+   ],
+   "denoise": 1.0
+  },
+  "_meta": {
+   "title": "KSampler"
+  }
+ },
+ "39": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "38",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "VAEDecode"
+  }
+ },
+ "40": {
+  "class_type": "StandRigReferenceSheet",
+  "inputs": {
+   "sheet": "expressions",
+   "neutral": [
+    "28",
+    0
+   ],
+   "generated": [
+    "39",
+    0
+   ],
+   "panel_ids": [
+    "31",
+    1
+   ],
+   "plan_json": [
+    "31",
+    3
+   ],
+   "panel_height": 512,
+   "columns": 5,
+   "labels": true,
+   "roll_pivot": "auto",
+   "connection_crop": true
+  },
+  "_meta": {
+   "title": "StandRigReferenceSheet"
+  }
+ },
+ "41": {
+  "class_type": "PreviewImage",
+  "inputs": {
+   "images": [
+    "40",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "expressions sheet"
+  }
+ },
+ "42": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "text": [
+    "31",
+    2
+   ],
+   "clip": [
+    "25",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "SAM3 text prompt"
+  }
+ },
+ "43": {
+  "class_type": "SAM3_Detect",
+  "inputs": {
+   "model": [
+    "25",
+    0
+   ],
+   "image": [
+    "39",
+    0
+   ],
+   "threshold": 0.4,
+   "refine_iterations": 2,
+   "individual_masks": false,
+   "conditioning": [
+    "42",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "SAM3_Detect"
+  }
+ },
+ "44": {
+  "class_type": "StandRigVariantLayers",
+  "inputs": {
+   "variants": [
+    "39",
+    0
+   ],
+   "panel_ids": [
+    "31",
+    1
+   ],
+   "crop_info": [
+    "28",
+    1
+   ],
+   "group": "Expressions",
+   "mask_mode": "sam_or_difference",
+   "grow_px": 8,
+   "feather_px": 3,
+   "diff_threshold": 0.1,
+   "region_masks": [
+    "43",
+    0
+   ],
+   "neutral_crop": [
+    "28",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "StandRigVariantLayers"
+  }
+ },
+ "45": {
+  "class_type": "PreviewImage",
+  "inputs": {
+   "images": [
+    "44",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "Variant masks"
+  }
+ },
+ "47": {
+  "class_type": "SeeThrough_LoadLayerDiffModel",
+  "inputs": {
+   "model": "layerdifforg/seethroughv0.0.2_layerdiff3d",
+   "vae_ckpt": "",
+   "unet_ckpt": "",
+   "quant_mode": "none",
+   "cache_tag_embeds": true,
+   "group_offload": false,
+   "auto_download": true
+  },
+  "_meta": {
+   "title": "SeeThrough_LoadLayerDiffModel"
+  }
+ },
+ "48": {
+  "class_type": "SeeThrough_LoadDepthModel",
+  "inputs": {
+   "model": "layerdifforg/seethroughv0.0.1_marigold",
+   "quant_mode": "none",
+   "cache_tag_embeds": true,
+   "group_offload": false,
+   "auto_download": true
+  },
+  "_meta": {
+   "title": "SeeThrough_LoadDepthModel"
+  }
+ },
+ "49": {
+  "class_type": "SeeThrough_GenerateLayers",
+  "inputs": {
+   "image": [
+    "23",
+    0
+   ],
+   "layerdiff_model": [
+    "47",
+    0
+   ],
+   "seed": 42,
+   "resolution": 1280,
+   "num_inference_steps": 30
+  },
+  "_meta": {
+   "title": "SeeThrough_GenerateLayers"
+  }
+ },
+ "50": {
+  "class_type": "SeeThrough_GenerateDepth",
+  "inputs": {
+   "layers": [
+    "49",
+    0
+   ],
+   "depth_model": [
+    "48",
+    0
+   ],
+   "seed": 42,
+   "resolution_depth": -1
+  },
+  "_meta": {
+   "title": "SeeThrough_GenerateDepth"
+  }
+ },
+ "51": {
+  "class_type": "SeeThrough_PostProcess",
+  "inputs": {
+   "layers_depth": [
+    "50",
+    0
+   ],
+   "tblr_split": true,
+   "use_lama": true
+  },
+  "_meta": {
+   "title": "SeeThrough_PostProcess"
+  }
+ },
+ "52": {
+  "class_type": "SeeThrough_PartsToLayers",
+  "inputs": {
+   "parts": [
+    "51",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "SeeThrough_PartsToLayers"
+  }
+ },
+ "53": {
+  "class_type": "PreviewImage",
+  "inputs": {
+   "images": [
+    "51",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "See-through reconstruction"
+  }
+ },
+ "54": {
+  "class_type": "StandRigLayersToPSD",
+  "inputs": {
+   "layers": [
+    "52",
+    0
+   ],
+   "project": "my_character",
+   "filename": "character",
+   "fit_mode": "auto",
+   "rename_parts": true,
+   "min_alpha_pixels": 16,
+   "source_image": [
+    "23",
+    0
+   ],
+   "extra_layers": [
+    "44",
+    0
+   ],
+   "add_reference_layer": false
+  },
+  "_meta": {
+   "title": "StandRigLayersToPSD"
+  }
+ },
+ "55": {
+  "class_type": "PreviewImage",
+  "inputs": {
+   "images": [
+    "54",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "PSD composite check"
+  }
+ },
+ "57": {
+  "class_type": "StandRigSaveReferencePack",
+  "inputs": {
+   "project": "my_character",
+   "expression_sheet": [
+    "40",
+    2
+   ],
+   "psd_path": [
+    "54",
+    0
+   ],
+   "source_image": [
+    "23",
+    0
+   ],
+   "notes": ""
+  },
+  "_meta": {
+   "title": "StandRigSaveReferencePack"
+  }
+ }
+}
