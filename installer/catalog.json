@@ -1,10 +1,10 @@
 {
   "catalog_version": 1,
   "installer": {
-    "version": "2.0.1",
+    "version": "2.1.0",
     "script_url": "https://raw.githubusercontent.com/tsukiyomi-naoko/StandRiggerWorkflow/main/installer/standrig_setup.py",
     "release_page": "https://github.com/tsukiyomi-naoko/StandRiggerWorkflow/releases",
-    "notes": "Better Comfy Desktop detection with a detection report in the log; hand-picked folders now also set the ComfyUI version and uv."
+    "notes": "New 'Move data' tab: move ComfyUI's models/custom_nodes/user/input/output to another drive with folder junctions; Auto-detect and Reset now clear the Browse choice; warning when the chosen folder is not the one ComfyUI uses."
   },
   "comfyui": {
     "required_core_files": [

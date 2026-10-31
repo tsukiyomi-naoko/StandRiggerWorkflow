@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 APP_NAME = "StandRig Setup"
-VERSION = "2.0.1"
+VERSION = "2.1.0"
 CATALOG_URL = "https://raw.githubusercontent.com/tsukiyomi-naoko/StandRiggerWorkflow/main/installer/catalog.json"
 # Overridable for testing / mirrors
 GITHUB_API = os.environ.get("STANDRIG_GITHUB_API", "https://api.github.com")
@@ -638,6 +638,192 @@ def send_to_trash(path: Path) -> None:
         path.unlink()
 
 
+# ==================================================================== migration
+MIGRATE_FOLDERS = ["models", "custom_nodes", "user", "input", "output"]
+
+
+def is_link(p: Path) -> bool:
+    """True for symlinks and Windows directory junctions."""
+    try:
+        if os.path.islink(p):
+            return True
+        isj = getattr(os.path, "isjunction", None)
+        return bool(isj and isj(p))
+    except OSError:
+        return False
+
+
+def make_junction(link: Path, target: Path) -> None:
+    """Directory junction on Windows (no admin needed); symlink elsewhere."""
+    if IS_WIN:
+        r = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(target)], capture_output=True, text=True,
+                           creationflags=NO_WINDOW)
+        if r.returncode != 0:
+            raise RuntimeError(f"mklink failed: {r.stdout} {r.stderr}".strip())
+    else:
+        os.symlink(str(target), str(link), target_is_directory=True)
+
+
+def same_file(a: Path, b: Path) -> bool:
+    """Cheap identity check: same size and same first/last MB."""
+    try:
+        sa, sb = a.stat().st_size, b.stat().st_size
+        if sa != sb:
+            return False
+        with open(a, "rb") as fa, open(b, "rb") as fb:
+            if fa.read(1 << 20) != fb.read(1 << 20):
+                return False
+            if sa > (2 << 20):
+                fa.seek(-(1 << 20), 2)
+                fb.seek(-(1 << 20), 2)
+                return fa.read() == fb.read()
+        return True
+    except OSError:
+        return False
+
+
+def _unique(p: Path) -> Path:
+    if not p.exists():
+        return p
+    i = 2
+    while True:
+        q = p.with_name(f"{p.name}.{i}")
+        if not q.exists():
+            return q
+        i += 1
+
+
+def move_path(src: Path, dst: Path, progress: Callable[[str, float, str], None], cancel: threading.Event) -> None:
+    """Move a file or folder; instant on the same drive, chunked copy with progress across drives."""
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        os.replace(src, dst)
+        return
+    except OSError:
+        pass
+    if src.is_dir():
+        shutil.copytree(src, dst, symlinks=True)
+        shutil.rmtree(src)
+        return
+    total = src.stat().st_size
+    tmp = dst.with_name(dst.name + ".moving")
+    done = 0
+    with open(src, "rb") as fi, open(tmp, "wb") as fo:
+        while True:
+            if cancel.is_set():
+                fo.close()
+                tmp.unlink(missing_ok=True)
+                raise Cancelled()
+            b = fi.read(8 << 20)
+            if not b:
+                break
+            fo.write(b)
+            done += len(b)
+            if total > (64 << 20):
+                progress(src.name, done / total, f"{fmt_size(done)} / {fmt_size(total)}")
+    shutil.copystat(src, tmp)
+    os.replace(tmp, dst)
+    src.unlink()
+
+
+def migrate_data(src_base: Path, dst_base: Path, folders: List[str], log: Callable[[str], None],
+                 progress: Callable[[str, float, str], None], cancel: threading.Event, dry_run: bool = True) -> dict:
+    """Move ComfyUI data folders from src_base to dst_base and leave junctions behind.
+
+    The live copy (src) wins every conflict; the other version goes to
+    dst_base/_replaced_from_D. Identical files already on the target are only
+    removed from the source (Recycle Bin on Windows)."""
+    rep_dir = dst_base / "_replaced_from_D"
+    report = {"move_files": 0, "move_bytes": 0, "dup_files": 0, "dup_bytes": 0, "conflicts": 0,
+              "plugins_moved": [], "plugins_replaced": [], "linked": [], "already_linked": [], "errors": []}
+    if src_base.resolve() == dst_base.resolve():
+        raise RuntimeError("source and target are the same folder")
+    for f in folders:
+        if cancel.is_set():
+            raise Cancelled()
+        src, dst = src_base / f, dst_base / f
+        if is_link(src):
+            report["already_linked"].append(f)
+            continue
+        if not src.exists():
+            if not dry_run and dst.exists():
+                make_junction(src, dst)
+                report["linked"].append(f)
+            continue
+        if f == "custom_nodes":
+            for e in sorted(src.iterdir(), key=lambda x: x.name.lower()):
+                d = dst / e.name
+                if e.name == "__pycache__":
+                    if not dry_run:
+                        shutil.rmtree(e, ignore_errors=True)
+                    continue
+                if d.exists():
+                    report["plugins_replaced"].append(e.name)
+                    if not dry_run:
+                        move_path(d, _unique(rep_dir / f / e.name), progress, cancel)
+                else:
+                    report["plugins_moved"].append(e.name)
+                if not dry_run:
+                    log(f"  custom_nodes/{e.name}")
+                    move_path(e, d, progress, cancel)
+        else:
+            for dirpath, _dirs, files in os.walk(src):
+                for fn in files:
+                    if cancel.is_set():
+                        raise Cancelled()
+                    a = Path(dirpath) / fn
+                    rel = a.relative_to(src)
+                    b = dst / rel
+                    try:
+                        size = a.stat().st_size
+                        if b.exists() and same_file(a, b):
+                            report["dup_files"] += 1
+                            report["dup_bytes"] += size
+                            if not dry_run:
+                                send_to_trash(a)
+                            continue
+                        if b.exists():
+                            report["conflicts"] += 1
+                            if not dry_run:
+                                move_path(b, _unique(rep_dir / f / rel), progress, cancel)
+                        report["move_files"] += 1
+                        report["move_bytes"] += size
+                        if not dry_run:
+                            if size > (256 << 20):
+                                log(f"  {f}/{rel} ({fmt_size(size)})")
+                            move_path(a, b, progress, cancel)
+                    except Cancelled:
+                        raise
+                    except Exception as e:  # locked file etc.
+                        report["errors"].append(f"{f}/{rel}: {e}")
+        if dry_run:
+            continue
+        left = [p for p in src.rglob("*") if p.is_file()] if src.exists() else []
+        if left:
+            report["errors"].append(f"{f}: {len(left)} file(s) could not be moved (in use?); not linked yet")
+            continue
+        shutil.rmtree(src, ignore_errors=True)
+        if src.exists():
+            report["errors"].append(f"{f}: could not remove the emptied folder; not linked")
+            continue
+        dst.mkdir(parents=True, exist_ok=True)
+        make_junction(src, dst)
+        report["linked"].append(f)
+        log(f"✔ {src} → {dst}")
+    return report
+
+
+def desktop_running() -> bool:
+    try:
+        if IS_WIN:
+            out = subprocess.run(["tasklist", "/NH"], capture_output=True, text=True, creationflags=NO_WINDOW,
+                                 timeout=15).stdout.lower()
+            return "comfyui.exe" in out or "comfy desktop.exe" in out
+        return comfy_running()
+    except Exception:
+        return False
+
+
 # =================================================================== operations
 
 class Installer:
@@ -1222,7 +1408,9 @@ def run_gui() -> None:
 
     def auto_detect():
         settings.pop("base_path", None)
+        settings.pop("folders", None)
         settings.save()
+        log("Using auto-detection (Browse choice and folder overrides cleared).")
         refresh_env()
 
     ttk.Button(head, text="Browse…", command=browse).grid(row=1, column=2, pady=(6, 0))
@@ -1851,6 +2039,7 @@ def run_gui() -> None:
         for v in fvars.values():
             v.set("")
         extra_txt.delete("1.0", "end")
+        settings.pop("base_path", None)  # the Browse… choice is an override too
         save_folders()
 
     frow = ttk.Frame(fold)
@@ -1858,6 +2047,108 @@ def run_gui() -> None:
     ttk.Button(frow, text="Save folders", command=save_folders).pack(side="left")
     ttk.Button(frow, text="Reset to auto-detect", command=reset_folders).pack(side="left", padx=6)
     state["folder_hints"] = fhints
+
+    t_mig = ttk.Frame(nb, padding=14)
+    nb.insert(t_set, t_mig, text="  Move data  ")
+    mig = ttk.LabelFrame(t_mig, text="Move ComfyUI data to another drive (keeps ComfyUI working, no settings to change)",
+                         padding=10)
+    mig.pack(fill="x", pady=8)
+    ttk.Label(mig, wraplength=960, justify="left", text=(
+        "Moves the selected folders out of the folder ComfyUI uses and leaves a Windows junction (folder shortcut) "
+        "in its place, so ComfyUI and Comfy Desktop keep the same paths while the files live on the new drive. "
+        "Files already on the target are merged: the copy ComfyUI uses today wins any difference, the other is kept "
+        "in _replaced_from_D, identical duplicates are removed from the old drive (Recycle Bin). ComfyUI's Python "
+        "(.venv) is not moved. Close ComfyUI and Comfy Desktop first.")).grid(row=0, column=0, columnspan=4, sticky="w")
+    ttk.Label(mig, text="From (used by ComfyUI)").grid(row=1, column=0, sticky="w", pady=(6, 0))
+    mig_src = tk.StringVar()
+    ttk.Label(mig, textvariable=mig_src).grid(row=1, column=1, columnspan=3, sticky="w", padx=6, pady=(6, 0))
+    ttk.Label(mig, text="To").grid(row=2, column=0, sticky="w")
+    mig_dst = tk.StringVar(value=settings.get("migrate_target") or settings.get("base_path") or "")
+    ttk.Entry(mig, textvariable=mig_dst).grid(row=2, column=1, sticky="we", padx=6)
+    ttk.Button(mig, text="Browse…", command=lambda: mig_dst.set(filedialog.askdirectory() or mig_dst.get())
+               ).grid(row=2, column=2)
+    mig_vars = {f: tk.BooleanVar(value=True) for f in MIGRATE_FOLDERS}
+    crow = ttk.Frame(mig)
+    crow.grid(row=3, column=1, sticky="w", padx=6, pady=4)
+    for f, v in mig_vars.items():
+        ttk.Checkbutton(crow, text=f, variable=v).pack(side="left", padx=(0, 10))
+    mig.columnconfigure(1, weight=1)
+
+    def mig_source() -> Optional[Path]:
+        real = detect_desktop2(Settings({"instance_id": settings.get("instance_id")}))
+        return real.base if real is not None and real.base else None
+
+    def mig_check():
+        src = mig_source()
+        dst = mig_dst.get().strip()
+        if not src:
+            messagebox.showerror(APP_NAME, "Could not find the ComfyUI data folder Comfy Desktop uses.")
+            return None
+        if not dst:
+            messagebox.showerror(APP_NAME, "Choose the target folder (for example D:\\Naoko\\ComfyUI\\ComfyUI).")
+            return None
+        return src, Path(dst), [f for f, v in mig_vars.items() if v.get()]
+
+    def mig_preview():
+        chk = mig_check()
+        if not chk:
+            return
+        src, dst, folders = chk
+
+        def fn(i: Installer):
+            r = migrate_data(src, dst, folders, i.log, i.progress, i.cancel, dry_run=True)
+            state["mig_report"] = r
+            i.log(f"Preview {src} → {dst}:")
+            i.log(f"  move {r['move_files']} files ({fmt_size(r['move_bytes'])}), remove {r['dup_files']} identical "
+                  f"duplicates ({fmt_size(r['dup_bytes'])}), {r['conflicts']} different files (old D: copy kept "
+                  f"in _replaced_from_D)")
+            i.log(f"  plugins moved: {', '.join(r['plugins_moved']) or '-'}")
+            i.log(f"  plugins replaced by the version ComfyUI uses now: {', '.join(r['plugins_replaced']) or '-'}")
+            if r["already_linked"]:
+                i.log(f"  already moved: {', '.join(r['already_linked'])}")
+            i.log(f"  C: space freed: about {fmt_size(r['move_bytes'] + r['dup_bytes'])}")
+        run_task("Previewing the move", fn)
+
+    def mig_go():
+        chk = mig_check()
+        if not chk:
+            return
+        src, dst, folders = chk
+        if desktop_running():
+            messagebox.showerror(APP_NAME, "Close ComfyUI / Comfy Desktop completely (also from the system tray), "
+                                           "then try again.")
+            return
+        if not messagebox.askyesno(APP_NAME, f"Move {', '.join(folders)}\nfrom {src}\nto {dst}\n\nand leave "
+                                             "folder shortcuts behind?\n\nRun Preview first if you haven't."):
+            return
+        settings["migrate_target"] = str(dst)
+        settings.save()
+
+        def fn(i: Installer):
+            r = migrate_data(src, dst, folders, i.log, i.progress, i.cancel, dry_run=False)
+            for e in r["errors"]:
+                i.log("  ! " + e)
+            i.log(f"Linked: {', '.join(r['linked']) or '-'}")
+            # From now on use what ComfyUI really uses
+            settings.pop("base_path", None)
+            settings.pop("folders", None)
+            settings.save()
+            env = detect(settings)
+            fixed = Installer(env, i.catalog, settings, i.log, i.progress)
+            fixed.cancel = i.cancel
+            for e in fixed.scan_plugins():
+                if e.get("installed") and e.get("kind") == "managed" and env.python:
+                    fixed.install_requirements_dir(Path(e["path"]), e["name"])
+            i.log("✔ Done. Start Comfy Desktop: everything is now read from the new drive."
+                  if not r["errors"] else "Finished with problems (see above). Close anything using those files "
+                                          "and run Move again; it continues where it stopped.")
+        run_task("Moving ComfyUI data", fn, after=refresh_env)
+
+    mrow2 = ttk.Frame(mig)
+    mrow2.grid(row=4, column=1, sticky="w", padx=6, pady=(4, 0))
+    ttk.Button(mrow2, text="Preview", command=mig_preview).pack(side="left")
+    ttk.Button(mrow2, text="Move now", command=mig_go).pack(side="left", padx=6)
+    state["mig_src_var"] = mig_src
     upd = ttk.LabelFrame(t_set, text="This tool", padding=10)
     upd.pack(fill="x", pady=8)
     tool_var = tk.StringVar(value=f"Version {VERSION}")
@@ -1979,6 +2270,12 @@ def run_gui() -> None:
         else:
             inst_row.grid_remove()
         warns = []
+        if settings.get("base_path"):
+            real = detect_desktop2(Settings())
+            if real is not None and real.base and Path(settings["base_path"]).resolve() != real.base.resolve():
+                warns.append(f"Comfy Desktop runs ComfyUI with its data in {real.base}. The folder chosen with "
+                             f"Browse… ({settings['base_path']}) is NOT used by ComfyUI. Press Auto-detect, or open the "
+                             "'Move data' tab to move ComfyUI's data to that drive.")
         if env.base and not env.python:
             warns.append("ComfyUI's Python environment was not found (start ComfyUI once to finish its setup), "
                          "so Python packages for plugins cannot be installed.")
@@ -1987,6 +2284,9 @@ def run_gui() -> None:
             warns.append(state["catalog"].get("comfyui", {}).get("update_hint", "Update ComfyUI.") +
                          f"  (missing: {', '.join(Path(m).name for m in missing)})")
         warn_var.set("\n".join(warns))
+        if state.get("mig_src_var") is not None:
+            real = detect_desktop2(Settings({"instance_id": settings.get("instance_id")}))
+            state["mig_src_var"].set(str(real.base) if real is not None and real.base else "(Comfy Desktop not found)")
         refresh_tables()
 
     def load_catalog_async():
