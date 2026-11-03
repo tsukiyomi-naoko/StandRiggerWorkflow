@@ -1,10 +1,10 @@
 {
   "catalog_version": 1,
   "installer": {
-    "version": "2.1.1",
+    "version": "2.1.2",
     "script_url": "https://raw.githubusercontent.com/tsukiyomi-naoko/StandRiggerWorkflow/main/installer/standrig_setup.py",
     "release_page": "https://github.com/tsukiyomi-naoko/StandRiggerWorkflow/releases",
-    "notes": "New 'Move data' tab: move ComfyUI's models/custom_nodes/user/input/output to another drive with folder junctions; Auto-detect and Reset now clear the Browse choice; warning when the chosen folder is not the one ComfyUI uses."
+    "notes": "Workflows now name the INT8 Qwen model by default (no more 38 GB BF16 prompt); switching variants also switches the download link inside the workflows."
   },
   "comfyui": {
     "required_core_files": [
@@ -64,7 +64,7 @@
   "model_variants": {
     "qwen_edit": {
       "label": "Qwen-Image-Edit-2511 weights",
-      "placeholder": "qwen_image_edit_2511_bf16.safetensors",
+      "placeholder": "qwen_image_edit_2511_int8_convrot.safetensors",
       "options": [
         {
           "id": "int8",

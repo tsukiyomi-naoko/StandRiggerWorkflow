@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 APP_NAME = "StandRig Setup"
-VERSION = "2.1.1"
+VERSION = "2.1.2"
 CATALOG_URL = "https://raw.githubusercontent.com/tsukiyomi-naoko/StandRiggerWorkflow/main/installer/catalog.json"
 # Overridable for testing / mirrors
 GITHUB_API = os.environ.get("STANDRIG_GITHUB_API", "https://api.github.com")
@@ -1204,6 +1204,9 @@ class Installer:
             text = zf.read(name).decode("utf-8")
             if placeholder and chosen and chosen != placeholder:
                 text = text.replace(placeholder, chosen)
+                urls = {m["file"]: m["url"] for m in self.catalog.get("models", [])}
+                if placeholder in urls and chosen in urls:  # keep the embedded download link consistent
+                    text = text.replace(urls[placeholder], urls[chosen])
             (dest / rel).write_text(text, encoding="utf-8")
             n += 1
         self.log(f"Copied {n} workflows to {dest}" + (f" (using {chosen})" if chosen else ""))

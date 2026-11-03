@@ -27,7 +27,7 @@ UI_ONLY = {"MarkdownNote", "Note"}
 
 # --------------------------------------------------------------------- models
 MODELS = {
-    "unet": "qwen_image_edit_2511_bf16.safetensors",
+    "unet": "qwen_image_edit_2511_int8_convrot.safetensors",
     "clip": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
     "vae": "qwen_image_vae.safetensors",
     "lightning": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
@@ -36,6 +36,7 @@ MODELS = {
     "birefnet": "birefnet.safetensors",
 }
 MODEL_URLS = {
+    "qwen_image_edit_2511_int8_convrot.safetensors": ("diffusion_models", "https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_edit_2511_int8_convrot.safetensors"),
     "qwen_image_edit_2511_bf16.safetensors": ("diffusion_models", "https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_edit_2511_bf16.safetensors"),
     "qwen_2.5_vl_7b_fp8_scaled.safetensors": ("text_encoders", "https://huggingface.co/Comfy-Org/HunyuanVideo_1.5_repackaged/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors"),
     "qwen_image_vae.safetensors": ("vae", "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors"),
@@ -347,7 +348,8 @@ def build_models(c: Ctx, need_angles: bool):
         "## 2 · Models\n"
         "Qwen-Image-Edit-2511 + Lightning LoRA (4 steps, cfg 1). For maximum quality bypass the Lightning LoRA "
         "and set every KSampler to **steps 40 / cfg 4**.\n\n"
-        "Low VRAM: set `weight_dtype` to `fp8_e4m3fn`, or use `qwen_image_edit_2511_int8_convrot.safetensors`.\n\n"
+        "Uses the INT8 ConvRot weights (19 GB). Best quality on a 32 GB+ GPU: pick `qwen_image_edit_2511_bf16.safetensors` "
+        "in the UNETLoader (38 GB; StandRig Setup can download and switch it).\n\n"
         "The Multiple-Angles LoRA (fal) is only used by the turnaround sheet; StandRig targets use exact-degree "
         "instructions on the base model."), col=0)
     if c.fake:

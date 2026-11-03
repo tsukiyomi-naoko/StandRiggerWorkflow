@@ -140,7 +140,19 @@ settings["qwen_variant"] = "int8"
 n = inst.install_workflows()
 wfdir = base / "user/default/workflows/StandRig"
 full = (wfdir / "standrig_full_pipeline.json").read_text()
-assert n == 5 and "qwen_image_edit_2511_int8_convrot.safetensors" in full and "qwen_image_edit_2511_bf16" not in full
+def unet_of(text):
+    d = json.loads(text)
+    u = next(nd for nd in d["nodes"] if nd["type"] == "UNETLoader")
+    return u["widgets_values"][0], u["properties"]["models"][0]["url"]
+assert n == 5 and unet_of(full)[0] == "qwen_image_edit_2511_int8_convrot.safetensors"
+assert unet_of(full)[1].endswith("qwen_image_edit_2511_int8_convrot.safetensors")
+settings["qwen_variant"] = "bf16"   # switching variants rewrites model name AND download link
+inst._sha_cache.clear()
+inst.install_workflows()
+name, url = unet_of((wfdir / "standrig_full_pipeline.json").read_text())
+assert name == "qwen_image_edit_2511_bf16.safetensors" and url.endswith("/qwen_image_edit_2511_bf16.safetensors"), (name, url)
+settings["qwen_variant"] = "int8"
+inst.install_workflows()
 assert not (wfdir / "api").exists()
 print("workflows ok", sorted(p.name for p in wfdir.iterdir()))
 
