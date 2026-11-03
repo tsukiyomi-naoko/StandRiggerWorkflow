@@ -126,31 +126,34 @@ def body_targets(subject: str, yaw: float, pitch: float, roll: float, roll_mode:
     return panels
 
 
+POSE_LOCK = ("Do not change the pose: the head, arms, hands, legs and feet stay exactly where they are, with "
+             "the same position and size on the canvas. ")
+
 CONNECTIONS = [
     ("hair-roots-back-hair",
-     "Remove the front bangs and the side locks of {subject} so the forehead, the hairline and the hair roots "
-     "are fully visible, and draw the back hair as one complete mass behind the head and neck, including its "
-     "darker inner side. The face, eyes and back hair otherwise stay identical.",
+     POSE_LOCK + "Only remove the front bangs and the side locks of {subject} so the forehead, the hairline and "
+     "the hair roots are fully visible, and draw the back hair as one complete mass behind the head and neck, "
+     "including its darker inner side. Everything else stays identical.",
      "hair", (0.00, 0.00, 1.00, 0.42)),
     ("jaw-neck",
-     "Raise {subject}'s chin slightly and draw the complete neck continuing up under the jaw line, with the "
-     "neck skin extending behind the jaw so there is no gap between the jaw and the neck.",
+     POSE_LOCK + "Only redraw the area under {subject}'s jaw: the neck continues up behind the jaw line with no "
+     "gap, as if the jaw were slightly transparent. The face stays identical.",
      "neck", (0.10, 0.08, 0.90, 0.42)),
     ("neck-collar-shoulders",
-     "Show the full neck, collarbones and shoulder line of {subject} where they meet the collar: draw the skin "
-     "and the inside of the collar fully, as if the collar were slightly lifted, keeping the same outfit.",
+     POSE_LOCK + "Only redraw {subject}'s collar area: show the full neck, collarbones and shoulder line under the "
+     "collar, with the inside of the collar visible, keeping the same outfit.",
      "collar", (0.00, 0.15, 1.00, 0.50)),
     ("sleeves-arms",
-     "Raise {subject}'s arms slightly away from the body and draw the complete shoulder joints and the arms "
-     "continuing inside the sleeve openings, including the inner side of the sleeves.",
+     POSE_LOCK + "Only redraw {subject}'s shoulders and sleeve openings: show where the arms enter the sleeves, "
+     "the complete shoulder joints and the darker inner side of the sleeves.",
      "arm", (0.00, 0.18, 1.00, 0.70)),
     ("waist-skirt-thighs",
-     "Draw the inner lining of {subject}'s skirt or lower garment and the waist/hip area underneath it, with "
-     "modest shorts or leggings, so the legs continue cleanly under the hem with no gap. Keep it non-revealing.",
+     POSE_LOCK + "Only redraw the inside of {subject}'s skirt or lower garment: show its inner lining and modest "
+     "shorts or leggings underneath, so the legs continue cleanly under the hem with no gap. Keep it non-revealing.",
      "skirt", (0.00, 0.40, 1.00, 0.80)),
     ("thighs-lower-legs",
-     "Bend {subject}'s knees very slightly and draw the complete knee joints so the thighs connect smoothly to "
-     "the lower legs, including any socks or leggings overlapping at the knee.",
+     POSE_LOCK + "Only redraw {subject}'s knees: complete knee joints so the thighs connect smoothly to the lower "
+     "legs, including any socks or leggings overlapping at the knee.",
      "knee", (0.00, 0.55, 1.00, 1.00)),
 ]
 

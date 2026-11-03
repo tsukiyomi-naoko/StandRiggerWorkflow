@@ -235,9 +235,17 @@ class StandRigRegionCrop:
         rgb = _t2np(image)[..., :3]
         H, W = rgb.shape[:2]
         rm = _mask2np(region_mask, H, W)
+        use_mask = False
         if rm is not None and (rm > 0.5).any():
             ys, xs = np.nonzero(rm > 0.5)
             x0, y0, x1, y1 = xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
+            sx0_, sy0_, sx1_, sy1_ = _subject_bbox(rgb, _mask2np(subject_alpha, H, W))
+            # A "head" mask taller than ~45% of the character is the whole body: don't trust it.
+            use_mask = (y1 - y0) <= 0.45 * max(1, sy1_ - sy0_)
+            if not use_mask:
+                print("[StandRig] region mask covers most of the character; using the head estimate instead")
+        if use_mask:
+            pass
         elif fallback == "head_from_subject_top":
             sx0, sy0, sx1, sy1 = _subject_bbox(rgb, _mask2np(subject_alpha, H, W))
             hh = (sy1 - sy0) * head_fraction
@@ -474,8 +482,12 @@ class StandRigReferenceSheet:
             if sheet == "connections" and connection_crop and meta.get("method") == "ai":
                 band = (meta.get("extremes") or {}).get("cropBand")
                 if band:
-                    bx0 = sx0 + (sx1 - sx0) * band[0]; by0 = sy0 + (sy1 - sy0) * band[1]
-                    bx1 = sx0 + (sx1 - sx0) * band[2]; by1 = sy0 + (sy1 - sy0) * band[3]
+                    # band relative to the character in THIS image (the edit may have zoomed in or out)
+                    gx0, gy0, gx1, gy1 = _subject_bbox(np.asarray(img.convert("RGB")))
+                    if (gx1 - gx0) < 0.2 * W or (gy1 - gy0) < 0.2 * H:
+                        gx0, gy0, gx1, gy1 = sx0, sy0, sx1, sy1
+                    bx0 = gx0 + (gx1 - gx0) * band[0]; by0 = gy0 + (gy1 - gy0) * band[1]
+                    bx1 = gx0 + (gx1 - gx0) * band[2]; by1 = gy0 + (gy1 - gy0) * band[3]
                     img = img.crop((int(bx0), int(by0), int(math.ceil(bx1)), int(math.ceil(by1))))
                     meta["crop"] = [int(bx0), int(by0), int(math.ceil(bx1)), int(math.ceil(by1))]
             panels.append((pid, img, meta))
