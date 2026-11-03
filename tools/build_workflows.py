@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -148,6 +149,11 @@ class Graph:
         y = 0
         gap_x, gap_y, pad = 40, 24, 40
         self.bounds = {}
+
+        def num(g):  # lay groups out in their numbered order ("1 · …", "2 · …", …)
+            m = re.match(r"\s*(\d+)", g[1])
+            return int(m.group(1)) if m else 999
+        self.groups.sort(key=num)
         for key, title, color in self.groups:
             members = [n for n in self.nodes if n.group == key]
             if not members:

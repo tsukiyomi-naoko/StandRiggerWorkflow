@@ -7,7 +7,7 @@
    "type": "MarkdownNote",
    "pos": [
     40,
-    80
+    1434
    ],
    "size": [
     420,
@@ -30,7 +30,7 @@
    "type": "UNETLoader",
    "pos": [
     500,
-    80
+    1434
    ],
    "size": [
     320,
@@ -70,7 +70,7 @@
    "type": "CLIPLoader",
    "pos": [
     500,
-    198
+    1552
    ],
    "size": [
     320,
@@ -118,7 +118,7 @@
    "type": "VAELoader",
    "pos": [
     500,
-    340
+    1694
    ],
    "size": [
     320,
@@ -172,7 +172,7 @@
    "type": "ModelSamplingAuraFlow",
    "pos": [
     860,
-    80
+    1434
    ],
    "size": [
     320,
@@ -211,7 +211,7 @@
    "type": "CFGNorm",
    "pos": [
     860,
-    220
+    1574
    ],
    "size": [
     320,
@@ -250,7 +250,7 @@
    "type": "LoraLoaderModelOnly",
    "pos": [
     860,
-    360
+    1714
    ],
    "size": [
     320,
@@ -300,7 +300,7 @@
    "type": "MarkdownNote",
    "pos": [
     40,
-    700
+    80
    ],
    "size": [
     420,
@@ -323,7 +323,7 @@
    "type": "LoadImage",
    "pos": [
     40,
-    1036
+    416
    ],
    "size": [
     320,
@@ -364,7 +364,7 @@
    "type": "LoadBackgroundRemovalModel",
    "pos": [
     500,
-    700
+    80
    ],
    "size": [
     320,
@@ -403,7 +403,7 @@
    "type": "RemoveBackground",
    "pos": [
     500,
-    794
+    174
    ],
    "size": [
     320,
@@ -444,7 +444,7 @@
    "type": "StandRigPrepareCanvas",
    "pos": [
     500,
-    908
+    288
    ],
    "size": [
     360,
@@ -505,7 +505,7 @@
    "type": "PrimitiveStringMultiline",
    "pos": [
     900,
-    700
+    80
    ],
    "size": [
     320,
@@ -538,7 +538,7 @@
    "type": "FluxKontextImageScale",
    "pos": [
     900,
-    870
+    250
    ],
    "size": [
     320,
@@ -576,7 +576,7 @@
    "type": "TextEncodeQwenImageEditPlus",
    "pos": [
     900,
-    962
+    342
    ],
    "size": [
     360,
@@ -643,7 +643,7 @@
    "type": "TextEncodeQwenImageEditPlus",
    "pos": [
     900,
-    1242
+    622
    ],
    "size": [
     360,
@@ -702,7 +702,7 @@
    "type": "FluxKontextMultiReferenceLatentMethod",
    "pos": [
     1300,
-    700
+    80
    ],
    "size": [
     320,
@@ -740,7 +740,7 @@
    "type": "FluxKontextMultiReferenceLatentMethod",
    "pos": [
     1300,
-    816
+    196
    ],
    "size": [
     320,
@@ -778,7 +778,7 @@
    "type": "VAEEncode",
    "pos": [
     1300,
-    932
+    312
    ],
    "size": [
     320,
@@ -819,7 +819,7 @@
    "type": "KSampler",
    "pos": [
     1300,
-    1046
+    426
    ],
    "size": [
     320,
@@ -878,7 +878,7 @@
    "type": "VAEDecode",
    "pos": [
     1300,
-    1348
+    728
    ],
    "size": [
     320,
@@ -919,7 +919,7 @@
    "type": "ComfySwitchNode",
    "pos": [
     1300,
-    1462
+    842
    ],
    "size": [
     320,
@@ -963,7 +963,7 @@
    "type": "StandRigPrepareCanvas",
    "pos": [
     1300,
-    1600
+    980
    ],
    "size": [
     360,
@@ -1029,7 +1029,7 @@
    "type": "PreviewImage",
    "pos": [
     1700,
-    700
+    80
    ],
    "size": [
     320,
@@ -1064,7 +1064,7 @@
    "type": "CheckpointLoaderSimple",
    "pos": [
     1220,
-    80
+    1434
    ],
    "size": [
     320,
@@ -4038,26 +4038,26 @@
  ],
  "groups": [
   {
-   "title": "2 · Models (Qwen-Image-Edit-2511 + Lightning 4-step)",
-   "bounding": [
-    0,
-    0,
-    1620,
-    540
-   ],
-   "color": "#444",
-   "font_size": 24,
-   "flags": {}
-  },
-  {
    "title": "1 · Input picture → clean canvas",
    "bounding": [
     0,
-    620,
+    0,
     2100,
     1274
    ],
    "color": "#3f789e",
+   "font_size": 24,
+   "flags": {}
+  },
+  {
+   "title": "2 · Models (Qwen-Image-Edit-2511 + Lightning 4-step)",
+   "bounding": [
+    0,
+    1354,
+    1620,
+    540
+   ],
+   "color": "#444",
    "font_size": 24,
    "flags": {}
   },

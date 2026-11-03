@@ -7,7 +7,7 @@
    "type": "MarkdownNote",
    "pos": [
     40,
-    80
+    742
    ],
    "size": [
     420,
@@ -30,7 +30,7 @@
    "type": "UNETLoader",
    "pos": [
     500,
-    80
+    742
    ],
    "size": [
     320,
@@ -71,7 +71,7 @@
    "type": "CLIPLoader",
    "pos": [
     500,
-    198
+    860
    ],
    "size": [
     320,
@@ -113,7 +113,7 @@
    "type": "VAELoader",
    "pos": [
     500,
-    340
+    1002
    ],
    "size": [
     320,
@@ -155,7 +155,7 @@
    "type": "ModelSamplingAuraFlow",
    "pos": [
     860,
-    80
+    742
    ],
    "size": [
     320,
@@ -194,7 +194,7 @@
    "type": "CFGNorm",
    "pos": [
     860,
-    220
+    882
    ],
    "size": [
     320,
@@ -233,7 +233,7 @@
    "type": "LoraLoaderModelOnly",
    "pos": [
     860,
-    360
+    1022
    ],
    "size": [
     320,
@@ -278,7 +278,7 @@
    "type": "LoraLoaderModelOnly",
    "pos": [
     1220,
-    80
+    742
    ],
    "size": [
     320,
@@ -325,7 +325,7 @@
    "type": "ModelSamplingAuraFlow",
    "pos": [
     1220,
-    220
+    882
    ],
    "size": [
     320,
@@ -364,7 +364,7 @@
    "type": "CFGNorm",
    "pos": [
     1220,
-    360
+    1022
    ],
    "size": [
     320,
@@ -403,7 +403,7 @@
    "type": "LoraLoaderModelOnly",
    "pos": [
     1220,
-    500
+    1162
    ],
    "size": [
     320,
@@ -450,7 +450,7 @@
    "type": "MarkdownNote",
    "pos": [
     40,
-    840
+    80
    ],
    "size": [
     420,
@@ -473,7 +473,7 @@
    "type": "LoadImage",
    "pos": [
     40,
-    1176
+    416
    ],
    "size": [
     320,
@@ -514,7 +514,7 @@
    "type": "LoadBackgroundRemovalModel",
    "pos": [
     500,
-    840
+    80
    ],
    "size": [
     320,
@@ -553,7 +553,7 @@
    "type": "RemoveBackground",
    "pos": [
     500,
-    934
+    174
    ],
    "size": [
     320,
@@ -594,7 +594,7 @@
    "type": "StandRigPrepareCanvas",
    "pos": [
     500,
-    1048
+    288
    ],
    "size": [
     360,
@@ -655,7 +655,7 @@
    "type": "PreviewImage",
    "pos": [
     900,
-    840
+    80
    ],
    "size": [
     320,
@@ -1656,26 +1656,26 @@
  ],
  "groups": [
   {
-   "title": "2 · Models (Qwen-Image-Edit-2511 + Lightning 4-step)",
-   "bounding": [
-    0,
-    0,
-    1620,
-    680
-   ],
-   "color": "#444",
-   "font_size": 24,
-   "flags": {}
-  },
-  {
    "title": "1 · Input picture → clean canvas",
    "bounding": [
     0,
-    760,
+    0,
     1300,
     582
    ],
    "color": "#3f789e",
+   "font_size": 24,
+   "flags": {}
+  },
+  {
+   "title": "2 · Models (Qwen-Image-Edit-2511 + Lightning 4-step)",
+   "bounding": [
+    0,
+    662,
+    1620,
+    680
+   ],
+   "color": "#444",
    "font_size": 24,
    "flags": {}
   },
