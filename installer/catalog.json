@@ -203,6 +203,25 @@
       ]
     },
     {
+      "file": "standrig_full_pipeline_16gb.json",
+      "name": "Full pipeline (16 GB GPU)",
+      "description": "Same as the full pipeline in one run, with See-through set to 1024 px / 720 px depth for a 16 GB graphics card.",
+      "outputs": "character.psd, face/body/connection/expression/turnaround sheets, reference-manifest.json",
+      "plugins": [
+        "standrig-bridge",
+        "see-through"
+      ],
+      "models": [
+        "qwen_edit",
+        "qwen-te",
+        "qwen-vae",
+        "lightning",
+        "angles",
+        "sam3",
+        "birefnet"
+      ]
+    },
+    {
       "file": "standrig_reference_targets.json",
       "name": "StandRig reference targets",
       "description": "Only the visual gate StandRig requires before modeling: face, body and connection target sheets plus the manifest.",

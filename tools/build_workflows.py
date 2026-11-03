@@ -494,11 +494,11 @@ NOTE_SAVE = ("## 10 · Save the StandRig reference pack\n"
              "the model revision, then hand the folder to your AI client.")
 
 
-def build_seethrough(c: Ctx, src, extra_layers, project: str, low: bool = False):
+def build_seethrough(c: Ctx, src, extra_layers, project: str, low: bool = False, mid: bool = False):
     g = c.g
     g.group("layers", "9 · Part separation (See-through) → StandRig PSD" + (" · low memory" if low else ""),
             COLORS["layers"])
-    g.note("layers", NOTE_LAYERS + (NOTE_LOW_ST if low else ""), col=0)
+    g.note("layers", NOTE_LAYERS + (NOTE_LOW_ST if low else "") + (NOTE_MID_ST if mid else ""), col=0)
     q = "nf4" if low else "none"
     ld = g.add("SeeThrough_LoadLayerDiffModel", {"model": "layerdifforg/seethroughv0.0.2_layerdiff3d",
                                                 "quant_mode": q, "cache_tag_embeds": True,
@@ -507,10 +507,10 @@ def build_seethrough(c: Ctx, src, extra_layers, project: str, low: bool = False)
     dm = g.add("SeeThrough_LoadDepthModel", {"model": "layerdifforg/seethroughv0.0.1_marigold", "quant_mode": q,
                                             "cache_tag_embeds": True, "group_offload": low, "auto_download": True},
                group="layers", col=1)
-    gl = g.add("SeeThrough_GenerateLayers", {"seed": 42, "resolution": 1024 if low else 1280,
+    gl = g.add("SeeThrough_GenerateLayers", {"seed": 42, "resolution": 1024 if (low or mid) else 1280,
                                             "num_inference_steps": 30},
                {"image": src, "layerdiff_model": ld[0]}, group="layers", col=2)
-    gd = g.add("SeeThrough_GenerateDepth", {"seed": 42, "resolution_depth": 720 if low else -1},
+    gd = g.add("SeeThrough_GenerateDepth", {"seed": 42, "resolution_depth": 720 if (low or mid) else -1},
                {"layers": gl[0], "depth_model": dm[0]}, group="layers", col=2)
     pp = g.add("SeeThrough_PostProcess", {"tblr_split": True, "use_lama": True}, {"layers_depth": gd[0]},
                group="layers", col=2)
@@ -529,6 +529,8 @@ def build_seethrough(c: Ctx, src, extra_layers, project: str, low: bool = False)
 NOTE_LOW_ST = ("\n\n**Low-memory settings** (8 GB VRAM / 16 GB RAM): 4-bit nf4 models (smaller download, ~8 GB "
                "VRAM), group offload, 1024 px layers, 720 px depth. Slower, but it fits. The first run downloads the "
                "nf4 models from Hugging Face; that shows as 0 % in the queue, watch the console.")
+NOTE_MID_ST = ("\n\n**16 GB VRAM settings**: 1024 px layers and 720 px depth so See-through fits next to what "
+               "ComfyUI keeps loaded. If it still runs out of memory, set `quant_mode` to nf4 in both loaders.")
 NOTE_LOW_1 = ("## Low memory · step 1 of 2\n"
               "Run this first. It makes the StandRig reference sheets and the expression/viseme variants with "
               "Qwen-Image-Edit, saves them into `output/standrig/<project>/`, then **frees ComfyUI's memory** when it "
@@ -588,6 +590,7 @@ def build_workflow(schemas, kind: str, fake: bool = False, project: str = "my_ch
     c = Ctx(g, fake, steps=4, cfg=1.0, seed=20261031)
     want = {
         "full": dict(targets=True, expr=True, turn=True, layers="seethrough", normalize=True),
+        "full16": dict(targets=True, expr=True, turn=True, layers="seethrough", normalize=True, mid=True),
         "targets": dict(targets=True, expr=False, turn=False, layers=None, normalize=True),
         "psd": dict(targets=False, expr=True, turn=False, layers="seethrough", normalize=True),
         "psd_sam3": dict(targets=False, expr=True, turn=False, layers="sam3", normalize=True),
@@ -631,7 +634,7 @@ def build_workflow(schemas, kind: str, fake: bool = False, project: str = "my_ch
                                        NOTE_TURN, sheet_w={"columns": 4, "panel_height": 640})
     psd = None
     if want["layers"] == "seethrough":
-        psd = build_seethrough(c, src, extra, project)
+        psd = build_seethrough(c, src, extra, project, mid=want.get("mid", False))
     elif want["layers"] == "sam3":
         psd = build_sam_layers(c, src, alpha, extra, project)
     if any([face_sheet, body_sheet, conn_sheet, expr_sheet, turn_sheet, psd]):
@@ -657,6 +660,8 @@ def build_workflow(schemas, kind: str, fake: bool = False, project: str = "my_ch
 WORKFLOWS = {
     "full": ("standrig_full_pipeline", "Everything: clean-up → face/body/connection targets → expressions → "
              "turnaround → See-through PSD → reference pack"),
+    "full16": ("standrig_full_pipeline_16gb", "Full pipeline tuned for a 16 GB GPU (See-through at 1024 px, "
+               "720 px depth)"),
     "targets": ("standrig_reference_targets", "StandRig visual gate only: face, body and connection target sheets + manifest"),
     "psd": ("standrig_layers_psd_seethrough", "Layered PSD with See-through + expression/viseme variant layers"),
     "psd_sam3": ("standrig_layers_psd_sam3", "Layered PSD with core SAM3 masks only (no extra node pack)"),
