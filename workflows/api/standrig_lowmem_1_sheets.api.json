@@ -1,0 +1,1376 @@
+{
+ "2": {
+  "class_type": "UNETLoader",
+  "inputs": {
+   "unet_name": "qwen_image_edit_2511_int8_convrot.safetensors",
+   "weight_dtype": "default"
+  },
+  "_meta": {
+   "title": "UNETLoader"
+  }
+ },
+ "3": {
+  "class_type": "CLIPLoader",
+  "inputs": {
+   "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+   "type": "qwen_image",
+   "device": "default"
+  },
+  "_meta": {
+   "title": "CLIPLoader"
+  }
+ },
+ "4": {
+  "class_type": "VAELoader",
+  "inputs": {
+   "vae_name": "qwen_image_vae.safetensors"
+  },
+  "_meta": {
+   "title": "VAELoader"
+  }
+ },
+ "5": {
+  "class_type": "ModelSamplingAuraFlow",
+  "inputs": {
+   "model": [
+    "2",
+    0
+   ],
+   "shift": 3.1,
+   "sampling": "flow"
+  },
+  "_meta": {
+   "title": "ModelSamplingAuraFlow"
+  }
+ },
+ "6": {
+  "class_type": "CFGNorm",
+  "inputs": {
+   "model": [
+    "5",
+    0
+   ],
+   "strength": 1.0,
+   "pre_cfg": false
+  },
+  "_meta": {
+   "title": "CFGNorm"
+  }
+ },
+ "7": {
+  "class_type": "LoraLoaderModelOnly",
+  "inputs": {
+   "model": [
+    "6",
+    0
+   ],
+   "lora_name": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
+   "strength_model": 1.0
+  },
+  "_meta": {
+   "title": "Lightning 4-step LoRA"
+  }
+ },
+ "9": {
+  "class_type": "LoadImage",
+  "inputs": {
+   "image": "character.png"
+  },
+  "_meta": {
+   "title": "Load character picture"
+  }
+ },
+ "10": {
+  "class_type": "LoadBackgroundRemovalModel",
+  "inputs": {
+   "bg_removal_name": "birefnet.safetensors"
+  },
+  "_meta": {
+   "title": "LoadBackgroundRemovalModel"
+  }
+ },
+ "11": {
+  "class_type": "RemoveBackground",
+  "inputs": {
+   "bg_removal_model": [
+    "10",
+    0
+   ],
+   "image": [
+    "9",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "RemoveBackground"
+  }
+ },
+ "12": {
+  "class_type": "StandRigPrepareCanvas",
+  "inputs": {
+   "image": [
+    "9",
+    0
+   ],
+   "long_side": 1536,
+   "margin": 0.06,
+   "background": "white",
+   "multiple_of": 16,
+   "foreground_mask": [
+    "11",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "StandRigPrepareCanvas"
+  }
+ },
+ "13": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": "Redraw the character as a clean character model reference for Live2D rigging: full body, standing straight and facing the viewer directly, head level and looking at the viewer, eyes fully open, mouth closed in a neutral expression, arms relaxed and held slightly away from the torso so the sides of the body are visible, legs slightly apart, no props in the hands, nothing overlapping the face. Keep exactly the same character: same face, eye shape and eye color, hairstyle, hair color, outfit, accessories, line-art thickness, cel-shading style, color palette and lighting. Keep the same canvas size, framing and scale, and a plain flat white background. Do not add new objects, text, effects or shadows on the background."
+  },
+  "_meta": {
+   "title": "Normalize-pose prompt"
+  }
+ },
+ "14": {
+  "class_type": "FluxKontextImageScale",
+  "inputs": {
+   "image": [
+    "12",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "FluxKontextImageScale"
+  }
+ },
+ "15": {
+  "class_type": "TextEncodeQwenImageEditPlus",
+  "inputs": {
+   "clip": [
+    "3",
+    0
+   ],
+   "prompt": [
+    "13",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ],
+   "image1": [
+    "14",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Edit prompt normalize"
+  }
+ },
+ "16": {
+  "class_type": "TextEncodeQwenImageEditPlus",
+  "inputs": {
+   "clip": [
+    "3",
+    0
+   ],
+   "prompt": "",
+   "vae": [
+    "4",
+    0
+   ],
+   "image1": [
+    "14",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Negative (empty)"
+  }
+ },
+ "17": {
+  "class_type": "FluxKontextMultiReferenceLatentMethod",
+  "inputs": {
+   "conditioning": [
+    "15",
+    0
+   ],
+   "reference_latents_method": "index_timestep_zero"
+  },
+  "_meta": {
+   "title": "FluxKontextMultiReferenceLatentMethod"
+  }
+ },
+ "18": {
+  "class_type": "FluxKontextMultiReferenceLatentMethod",
+  "inputs": {
+   "conditioning": [
+    "16",
+    0
+   ],
+   "reference_latents_method": "index_timestep_zero"
+  },
+  "_meta": {
+   "title": "FluxKontextMultiReferenceLatentMethod"
+  }
+ },
+ "19": {
+  "class_type": "VAEEncode",
+  "inputs": {
+   "pixels": [
+    "14",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "VAEEncode"
+  }
+ },
+ "20": {
+  "class_type": "KSampler",
+  "inputs": {
+   "model": [
+    "7",
+    0
+   ],
+   "seed": 20261031,
+   "steps": 4,
+   "cfg": 1.0,
+   "sampler_name": "euler",
+   "scheduler": "simple",
+   "positive": [
+    "17",
+    0
+   ],
+   "negative": [
+    "18",
+    0
+   ],
+   "latent_image": [
+    "19",
+    0
+   ],
+   "denoise": 1.0
+  },
+  "_meta": {
+   "title": "KSampler"
+  }
+ },
+ "21": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "20",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "VAEDecode"
+  }
+ },
+ "22": {
+  "class_type": "ComfySwitchNode",
+  "inputs": {
+   "switch": false,
+   "on_false": [
+    "12",
+    0
+   ],
+   "on_true": [
+    "21",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Normalize pose? (switch)"
+  }
+ },
+ "23": {
+  "class_type": "StandRigPrepareCanvas",
+  "inputs": {
+   "image": [
+    "22",
+    0
+   ],
+   "long_side": 1536,
+   "margin": 0.06,
+   "background": "white",
+   "multiple_of": 16
+  },
+  "_meta": {
+   "title": "Source canvas"
+  }
+ },
+ "24": {
+  "class_type": "PreviewImage",
+  "inputs": {
+   "images": [
+    "23",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Source canvas"
+  }
+ },
+ "25": {
+  "class_type": "CheckpointLoaderSimple",
+  "inputs": {
+   "ckpt_name": "sam3.1_multiplex_fp16.safetensors"
+  },
+  "_meta": {
+   "title": "SAM3.1 (segmentation)"
+  }
+ },
+ "26": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "text": "head",
+   "clip": [
+    "25",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "SAM3 text prompt"
+  }
+ },
+ "27": {
+  "class_type": "SAM3_Detect",
+  "inputs": {
+   "model": [
+    "25",
+    0
+   ],
+   "image": [
+    "23",
+    0
+   ],
+   "threshold": 0.4,
+   "refine_iterations": 2,
+   "individual_masks": false,
+   "conditioning": [
+    "26",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "SAM3_Detect"
+  }
+ },
+ "28": {
+  "class_type": "StandRigRegionCrop",
+  "inputs": {
+   "image": [
+    "23",
+    0
+   ],
+   "padding": 0.45,
+   "size": 1024,
+   "fallback": "head_from_subject_top",
+   "head_fraction": 0.24,
+   "region_mask": [
+    "27",
+    0
+   ],
+   "subject_alpha": [
+    "12",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "StandRigRegionCrop"
+  }
+ },
+ "29": {
+  "class_type": "PreviewImage",
+  "inputs": {
+   "images": [
+    "28",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Face close-up"
+  }
+ },
+ "31": {
+  "class_type": "StandRigPosePrompts",
+  "inputs": {
+   "preset": "face_targets",
+   "subject": "the character",
+   "face_yaw": 30.0,
+   "face_pitch": 20.0,
+   "face_roll": 15.0,
+   "body_yaw": 15.0,
+   "body_pitch": 8.0,
+   "body_roll": 8.0,
+   "roll_mode": "auto",
+   "expression_list": "eyes-closed, eyes-smile, mouth-a, mouth-i, mouth-u, mouth-e, mouth-o, brows-angry, brows-sad",
+   "turnaround_shot": "wide shot",
+   "extra": ""
+  },
+  "_meta": {
+   "title": "Prompts · face_targets"
+  }
+ },
+ "32": {
+  "class_type": "FluxKontextImageScale",
+  "inputs": {
+   "image": [
+    "28",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "FluxKontextImageScale"
+  }
+ },
+ "33": {
+  "class_type": "TextEncodeQwenImageEditPlus",
+  "inputs": {
+   "clip": [
+    "3",
+    0
+   ],
+   "prompt": [
+    "31",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ],
+   "image1": [
+    "32",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Edit prompt · face"
+  }
+ },
+ "34": {
+  "class_type": "TextEncodeQwenImageEditPlus",
+  "inputs": {
+   "clip": [
+    "3",
+    0
+   ],
+   "prompt": "",
+   "vae": [
+    "4",
+    0
+   ],
+   "image1": [
+    "32",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Negative (empty)"
+  }
+ },
+ "35": {
+  "class_type": "FluxKontextMultiReferenceLatentMethod",
+  "inputs": {
+   "conditioning": [
+    "33",
+    0
+   ],
+   "reference_latents_method": "index_timestep_zero"
+  },
+  "_meta": {
+   "title": "FluxKontextMultiReferenceLatentMethod"
+  }
+ },
+ "36": {
+  "class_type": "FluxKontextMultiReferenceLatentMethod",
+  "inputs": {
+   "conditioning": [
+    "34",
+    0
+   ],
+   "reference_latents_method": "index_timestep_zero"
+  },
+  "_meta": {
+   "title": "FluxKontextMultiReferenceLatentMethod"
+  }
+ },
+ "37": {
+  "class_type": "VAEEncode",
+  "inputs": {
+   "pixels": [
+    "32",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "VAEEncode"
+  }
+ },
+ "38": {
+  "class_type": "KSampler",
+  "inputs": {
+   "model": [
+    "7",
+    0
+   ],
+   "seed": 20261031,
+   "steps": 4,
+   "cfg": 1.0,
+   "sampler_name": "euler",
+   "scheduler": "simple",
+   "positive": [
+    "35",
+    0
+   ],
+   "negative": [
+    "36",
+    0
+   ],
+   "latent_image": [
+    "37",
+    0
+   ],
+   "denoise": 1.0
+  },
+  "_meta": {
+   "title": "KSampler"
+  }
+ },
+ "39": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "38",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "VAEDecode"
+  }
+ },
+ "40": {
+  "class_type": "StandRigReferenceSheet",
+  "inputs": {
+   "sheet": "face",
+   "neutral": [
+    "28",
+    0
+   ],
+   "generated": [
+    "39",
+    0
+   ],
+   "panel_ids": [
+    "31",
+    1
+   ],
+   "plan_json": [
+    "31",
+    3
+   ],
+   "panel_height": 768,
+   "columns": 0,
+   "labels": true,
+   "roll_pivot": "auto",
+   "connection_crop": true
+  },
+  "_meta": {
+   "title": "StandRigReferenceSheet"
+  }
+ },
+ "41": {
+  "class_type": "PreviewImage",
+  "inputs": {
+   "images": [
+    "40",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "face sheet"
+  }
+ },
+ "43": {
+  "class_type": "StandRigPosePrompts",
+  "inputs": {
+   "preset": "body_targets",
+   "subject": "the character",
+   "face_yaw": 30.0,
+   "face_pitch": 20.0,
+   "face_roll": 15.0,
+   "body_yaw": 15.0,
+   "body_pitch": 8.0,
+   "body_roll": 8.0,
+   "roll_mode": "auto",
+   "expression_list": "eyes-closed, eyes-smile, mouth-a, mouth-i, mouth-u, mouth-e, mouth-o, brows-angry, brows-sad",
+   "turnaround_shot": "wide shot",
+   "extra": ""
+  },
+  "_meta": {
+   "title": "Prompts · body_targets"
+  }
+ },
+ "44": {
+  "class_type": "FluxKontextImageScale",
+  "inputs": {
+   "image": [
+    "23",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "FluxKontextImageScale"
+  }
+ },
+ "45": {
+  "class_type": "TextEncodeQwenImageEditPlus",
+  "inputs": {
+   "clip": [
+    "3",
+    0
+   ],
+   "prompt": [
+    "43",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ],
+   "image1": [
+    "44",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Edit prompt · body"
+  }
+ },
+ "46": {
+  "class_type": "TextEncodeQwenImageEditPlus",
+  "inputs": {
+   "clip": [
+    "3",
+    0
+   ],
+   "prompt": "",
+   "vae": [
+    "4",
+    0
+   ],
+   "image1": [
+    "44",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Negative (empty)"
+  }
+ },
+ "47": {
+  "class_type": "FluxKontextMultiReferenceLatentMethod",
+  "inputs": {
+   "conditioning": [
+    "45",
+    0
+   ],
+   "reference_latents_method": "index_timestep_zero"
+  },
+  "_meta": {
+   "title": "FluxKontextMultiReferenceLatentMethod"
+  }
+ },
+ "48": {
+  "class_type": "FluxKontextMultiReferenceLatentMethod",
+  "inputs": {
+   "conditioning": [
+    "46",
+    0
+   ],
+   "reference_latents_method": "index_timestep_zero"
+  },
+  "_meta": {
+   "title": "FluxKontextMultiReferenceLatentMethod"
+  }
+ },
+ "49": {
+  "class_type": "VAEEncode",
+  "inputs": {
+   "pixels": [
+    "44",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "VAEEncode"
+  }
+ },
+ "50": {
+  "class_type": "KSampler",
+  "inputs": {
+   "model": [
+    "7",
+    0
+   ],
+   "seed": 20261031,
+   "steps": 4,
+   "cfg": 1.0,
+   "sampler_name": "euler",
+   "scheduler": "simple",
+   "positive": [
+    "47",
+    0
+   ],
+   "negative": [
+    "48",
+    0
+   ],
+   "latent_image": [
+    "49",
+    0
+   ],
+   "denoise": 1.0
+  },
+  "_meta": {
+   "title": "KSampler"
+  }
+ },
+ "51": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "50",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "VAEDecode"
+  }
+ },
+ "52": {
+  "class_type": "StandRigReferenceSheet",
+  "inputs": {
+   "sheet": "body",
+   "neutral": [
+    "23",
+    0
+   ],
+   "generated": [
+    "51",
+    0
+   ],
+   "panel_ids": [
+    "43",
+    1
+   ],
+   "plan_json": [
+    "43",
+    3
+   ],
+   "panel_height": 768,
+   "columns": 0,
+   "labels": true,
+   "roll_pivot": "auto",
+   "connection_crop": true
+  },
+  "_meta": {
+   "title": "StandRigReferenceSheet"
+  }
+ },
+ "53": {
+  "class_type": "PreviewImage",
+  "inputs": {
+   "images": [
+    "52",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "body sheet"
+  }
+ },
+ "55": {
+  "class_type": "StandRigPosePrompts",
+  "inputs": {
+   "preset": "connection_targets",
+   "subject": "the character",
+   "face_yaw": 30.0,
+   "face_pitch": 20.0,
+   "face_roll": 15.0,
+   "body_yaw": 15.0,
+   "body_pitch": 8.0,
+   "body_roll": 8.0,
+   "roll_mode": "auto",
+   "expression_list": "eyes-closed, eyes-smile, mouth-a, mouth-i, mouth-u, mouth-e, mouth-o, brows-angry, brows-sad",
+   "turnaround_shot": "wide shot",
+   "extra": ""
+  },
+  "_meta": {
+   "title": "Prompts · connection_targets"
+  }
+ },
+ "56": {
+  "class_type": "FluxKontextImageScale",
+  "inputs": {
+   "image": [
+    "23",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "FluxKontextImageScale"
+  }
+ },
+ "57": {
+  "class_type": "TextEncodeQwenImageEditPlus",
+  "inputs": {
+   "clip": [
+    "3",
+    0
+   ],
+   "prompt": [
+    "55",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ],
+   "image1": [
+    "56",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Edit prompt · connections"
+  }
+ },
+ "58": {
+  "class_type": "TextEncodeQwenImageEditPlus",
+  "inputs": {
+   "clip": [
+    "3",
+    0
+   ],
+   "prompt": "",
+   "vae": [
+    "4",
+    0
+   ],
+   "image1": [
+    "56",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Negative (empty)"
+  }
+ },
+ "59": {
+  "class_type": "FluxKontextMultiReferenceLatentMethod",
+  "inputs": {
+   "conditioning": [
+    "57",
+    0
+   ],
+   "reference_latents_method": "index_timestep_zero"
+  },
+  "_meta": {
+   "title": "FluxKontextMultiReferenceLatentMethod"
+  }
+ },
+ "60": {
+  "class_type": "FluxKontextMultiReferenceLatentMethod",
+  "inputs": {
+   "conditioning": [
+    "58",
+    0
+   ],
+   "reference_latents_method": "index_timestep_zero"
+  },
+  "_meta": {
+   "title": "FluxKontextMultiReferenceLatentMethod"
+  }
+ },
+ "61": {
+  "class_type": "VAEEncode",
+  "inputs": {
+   "pixels": [
+    "56",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "VAEEncode"
+  }
+ },
+ "62": {
+  "class_type": "KSampler",
+  "inputs": {
+   "model": [
+    "7",
+    0
+   ],
+   "seed": 20261031,
+   "steps": 4,
+   "cfg": 1.0,
+   "sampler_name": "euler",
+   "scheduler": "simple",
+   "positive": [
+    "59",
+    0
+   ],
+   "negative": [
+    "60",
+    0
+   ],
+   "latent_image": [
+    "61",
+    0
+   ],
+   "denoise": 1.0
+  },
+  "_meta": {
+   "title": "KSampler"
+  }
+ },
+ "63": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "62",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "VAEDecode"
+  }
+ },
+ "64": {
+  "class_type": "StandRigReferenceSheet",
+  "inputs": {
+   "sheet": "connections",
+   "neutral": [
+    "23",
+    0
+   ],
+   "generated": [
+    "63",
+    0
+   ],
+   "panel_ids": [
+    "55",
+    1
+   ],
+   "plan_json": [
+    "55",
+    3
+   ],
+   "panel_height": 768,
+   "columns": 3,
+   "labels": true,
+   "roll_pivot": "auto",
+   "connection_crop": true
+  },
+  "_meta": {
+   "title": "StandRigReferenceSheet"
+  }
+ },
+ "65": {
+  "class_type": "PreviewImage",
+  "inputs": {
+   "images": [
+    "64",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "connections sheet"
+  }
+ },
+ "67": {
+  "class_type": "StandRigPosePrompts",
+  "inputs": {
+   "preset": "expressions_visemes",
+   "subject": "the character",
+   "face_yaw": 30.0,
+   "face_pitch": 20.0,
+   "face_roll": 15.0,
+   "body_yaw": 15.0,
+   "body_pitch": 8.0,
+   "body_roll": 8.0,
+   "roll_mode": "auto",
+   "expression_list": "eyes-closed, eyes-smile, mouth-a, mouth-i, mouth-u, mouth-e, mouth-o, brows-angry, brows-sad",
+   "turnaround_shot": "wide shot",
+   "extra": ""
+  },
+  "_meta": {
+   "title": "Prompts · expressions_visemes"
+  }
+ },
+ "68": {
+  "class_type": "FluxKontextImageScale",
+  "inputs": {
+   "image": [
+    "28",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "FluxKontextImageScale"
+  }
+ },
+ "69": {
+  "class_type": "TextEncodeQwenImageEditPlus",
+  "inputs": {
+   "clip": [
+    "3",
+    0
+   ],
+   "prompt": [
+    "67",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ],
+   "image1": [
+    "68",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Edit prompt · expressions"
+  }
+ },
+ "70": {
+  "class_type": "TextEncodeQwenImageEditPlus",
+  "inputs": {
+   "clip": [
+    "3",
+    0
+   ],
+   "prompt": "",
+   "vae": [
+    "4",
+    0
+   ],
+   "image1": [
+    "68",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Negative (empty)"
+  }
+ },
+ "71": {
+  "class_type": "FluxKontextMultiReferenceLatentMethod",
+  "inputs": {
+   "conditioning": [
+    "69",
+    0
+   ],
+   "reference_latents_method": "index_timestep_zero"
+  },
+  "_meta": {
+   "title": "FluxKontextMultiReferenceLatentMethod"
+  }
+ },
+ "72": {
+  "class_type": "FluxKontextMultiReferenceLatentMethod",
+  "inputs": {
+   "conditioning": [
+    "70",
+    0
+   ],
+   "reference_latents_method": "index_timestep_zero"
+  },
+  "_meta": {
+   "title": "FluxKontextMultiReferenceLatentMethod"
+  }
+ },
+ "73": {
+  "class_type": "VAEEncode",
+  "inputs": {
+   "pixels": [
+    "68",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "VAEEncode"
+  }
+ },
+ "74": {
+  "class_type": "KSampler",
+  "inputs": {
+   "model": [
+    "7",
+    0
+   ],
+   "seed": 20261031,
+   "steps": 4,
+   "cfg": 1.0,
+   "sampler_name": "euler",
+   "scheduler": "simple",
+   "positive": [
+    "71",
+    0
+   ],
+   "negative": [
+    "72",
+    0
+   ],
+   "latent_image": [
+    "73",
+    0
+   ],
+   "denoise": 1.0
+  },
+  "_meta": {
+   "title": "KSampler"
+  }
+ },
+ "75": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "74",
+    0
+   ],
+   "vae": [
+    "4",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "VAEDecode"
+  }
+ },
+ "76": {
+  "class_type": "StandRigReferenceSheet",
+  "inputs": {
+   "sheet": "expressions",
+   "neutral": [
+    "28",
+    0
+   ],
+   "generated": [
+    "75",
+    0
+   ],
+   "panel_ids": [
+    "67",
+    1
+   ],
+   "plan_json": [
+    "67",
+    3
+   ],
+   "panel_height": 512,
+   "columns": 5,
+   "labels": true,
+   "roll_pivot": "auto",
+   "connection_crop": true
+  },
+  "_meta": {
+   "title": "StandRigReferenceSheet"
+  }
+ },
+ "77": {
+  "class_type": "PreviewImage",
+  "inputs": {
+   "images": [
+    "76",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "expressions sheet"
+  }
+ },
+ "78": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "text": [
+    "67",
+    2
+   ],
+   "clip": [
+    "25",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "SAM3 text prompt"
+  }
+ },
+ "79": {
+  "class_type": "SAM3_Detect",
+  "inputs": {
+   "model": [
+    "25",
+    0
+   ],
+   "image": [
+    "75",
+    0
+   ],
+   "threshold": 0.4,
+   "refine_iterations": 2,
+   "individual_masks": false,
+   "conditioning": [
+    "78",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "SAM3_Detect"
+  }
+ },
+ "80": {
+  "class_type": "StandRigVariantLayers",
+  "inputs": {
+   "variants": [
+    "75",
+    0
+   ],
+   "panel_ids": [
+    "67",
+    1
+   ],
+   "crop_info": [
+    "28",
+    1
+   ],
+   "group": "Expressions",
+   "mask_mode": "sam_or_difference",
+   "grow_px": 8,
+   "feather_px": 3,
+   "diff_threshold": 0.1,
+   "region_masks": [
+    "79",
+    0
+   ],
+   "neutral_crop": [
+    "28",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "StandRigVariantLayers"
+  }
+ },
+ "81": {
+  "class_type": "PreviewImage",
+  "inputs": {
+   "images": [
+    "80",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "Variant masks"
+  }
+ },
+ "83": {
+  "class_type": "StandRigSaveReferencePack",
+  "inputs": {
+   "project": "my_character",
+   "face_sheet": [
+    "40",
+    2
+   ],
+   "body_sheet": [
+    "52",
+    2
+   ],
+   "connection_sheet": [
+    "64",
+    2
+   ],
+   "expression_sheet": [
+    "76",
+    2
+   ],
+   "source_image": [
+    "23",
+    0
+   ],
+   "notes": ""
+  },
+  "_meta": {
+   "title": "StandRigSaveReferencePack"
+  }
+ },
+ "84": {
+  "class_type": "StandRigSaveLayers",
+  "inputs": {
+   "layers": [
+    "80",
+    0
+   ],
+   "project": "my_character",
+   "name": "expressions"
+  },
+  "_meta": {
+   "title": "Save expression layers for step 2"
+  }
+ },
+ "86": {
+  "class_type": "StandRigFreeMemory",
+  "inputs": {
+   "after": [
+    "83",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "StandRigFreeMemory"
+  }
+ }
+}

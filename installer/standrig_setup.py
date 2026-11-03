@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 APP_NAME = "StandRig Setup"
-VERSION = "2.1.2"
+VERSION = "2.2.0"
 CATALOG_URL = "https://raw.githubusercontent.com/tsukiyomi-naoko/StandRiggerWorkflow/main/installer/catalog.json"
 # Overridable for testing / mirrors
 GITHUB_API = os.environ.get("STANDRIG_GITHUB_API", "https://api.github.com")

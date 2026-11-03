@@ -494,20 +494,23 @@ NOTE_SAVE = ("## 10 · Save the StandRig reference pack\n"
              "the model revision, then hand the folder to your AI client.")
 
 
-def build_seethrough(c: Ctx, src, extra_layers, project: str):
+def build_seethrough(c: Ctx, src, extra_layers, project: str, low: bool = False):
     g = c.g
-    g.group("layers", "9 · Part separation (See-through) → StandRig PSD", COLORS["layers"])
-    g.note("layers", NOTE_LAYERS, col=0)
+    g.group("layers", "9 · Part separation (See-through) → StandRig PSD" + (" · low memory" if low else ""),
+            COLORS["layers"])
+    g.note("layers", NOTE_LAYERS + (NOTE_LOW_ST if low else ""), col=0)
+    q = "nf4" if low else "none"
     ld = g.add("SeeThrough_LoadLayerDiffModel", {"model": "layerdifforg/seethroughv0.0.2_layerdiff3d",
-                                                "quant_mode": "none", "cache_tag_embeds": True,
-                                                "group_offload": False, "auto_download": True},
+                                                "quant_mode": q, "cache_tag_embeds": True,
+                                                "group_offload": low, "auto_download": True},
                group="layers", col=1)
-    dm = g.add("SeeThrough_LoadDepthModel", {"model": "layerdifforg/seethroughv0.0.1_marigold", "quant_mode": "none",
-                                            "cache_tag_embeds": True, "group_offload": False, "auto_download": True},
+    dm = g.add("SeeThrough_LoadDepthModel", {"model": "layerdifforg/seethroughv0.0.1_marigold", "quant_mode": q,
+                                            "cache_tag_embeds": True, "group_offload": low, "auto_download": True},
                group="layers", col=1)
-    gl = g.add("SeeThrough_GenerateLayers", {"seed": 42, "resolution": 1280, "num_inference_steps": 30},
+    gl = g.add("SeeThrough_GenerateLayers", {"seed": 42, "resolution": 1024 if low else 1280,
+                                            "num_inference_steps": 30},
                {"image": src, "layerdiff_model": ld[0]}, group="layers", col=2)
-    gd = g.add("SeeThrough_GenerateDepth", {"seed": 42, "resolution_depth": -1},
+    gd = g.add("SeeThrough_GenerateDepth", {"seed": 42, "resolution_depth": 720 if low else -1},
                {"layers": gl[0], "depth_model": dm[0]}, group="layers", col=2)
     pp = g.add("SeeThrough_PostProcess", {"tblr_split": True, "use_lama": True}, {"layers_depth": gd[0]},
                group="layers", col=2)
@@ -521,6 +524,37 @@ def build_seethrough(c: Ctx, src, extra_layers, project: str):
                 ins, group="layers", col=4)
     g.add("PreviewImage", {}, {"images": psd[1]}, group="layers", col=4, title="PSD composite check")
     return psd
+
+
+NOTE_LOW_ST = ("\n\n**Low-memory settings** (8 GB VRAM / 16 GB RAM): 4-bit nf4 models (smaller download, ~8 GB "
+               "VRAM), group offload, 1024 px layers, 720 px depth. Slower, but it fits. The first run downloads the "
+               "nf4 models from Hugging Face; that shows as 0 % in the queue, watch the console.")
+NOTE_LOW_1 = ("## Low memory · step 1 of 2\n"
+              "Run this first. It makes the StandRig reference sheets and the expression/viseme variants with "
+              "Qwen-Image-Edit, saves them into `output/standrig/<project>/`, then **frees ComfyUI's memory** when it "
+              "finishes.\n\nThen open **standrig_lowmem_2_psd** with the **same project name** and run it: it adds the "
+              "See-through layers and writes the PSD. The two big models are never loaded together.\n\n"
+              "On 16 GB RAM close other apps (browser, games) while it runs.")
+NOTE_LOW_2 = ("## Low memory · step 2 of 2\n"
+              "Run **standrig_lowmem_1_sheets** first with the same `project` name. This step loads the exact source "
+              "canvas and the expression layers it saved (no Qwen model is loaded here), runs See-through with "
+              "low-memory settings and writes `character.psd`, then updates the same reference-manifest.json with "
+              "the PSD's hash and frees memory.")
+
+
+def build_lowmem_step2(schemas, fake: bool = False, project: str = "my_character") -> Graph:
+    g = Graph(schemas)
+    c = Ctx(g, fake, steps=4, cfg=1.0, seed=20261031)
+    g.group("input", "1 · Load what step 1 saved", COLORS["input"])
+    g.note("input", NOTE_LOW_2, col=0)
+    lp = g.add("StandRigLoadProject", {"project": project, "layers_name": "expressions"}, group="input", col=1,
+               title="Project from step 1 (same name!)")
+    g.add("PreviewImage", {}, {"images": lp[0]}, group="input", col=2, title="Source canvas from step 1")
+    psd = build_seethrough(c, lp[0], lp[1], project, low=True)
+    g.group("save", "10 · Update the reference pack + free memory", COLORS["save"])
+    pack = g.add("StandRigSaveReferencePack", {"project": project}, {"psd_path": psd[0]}, group="save", col=1)
+    g.add("StandRigFreeMemory", {}, {"after": pack[0]}, group="save", col=2)
+    return g
 
 
 def build_sam_layers(c: Ctx, src, alpha, extra_layers, project: str):
@@ -559,6 +593,10 @@ def build_workflow(schemas, kind: str, fake: bool = False, project: str = "my_ch
         "psd_sam3": dict(targets=False, expr=True, turn=False, layers="sam3", normalize=True),
         "turnaround": dict(targets=False, expr=False, turn=True, layers=None, normalize=False),
         "e2e_test": dict(targets=True, expr=True, turn=True, layers="seethrough", normalize=False),
+        "lowmem_1": dict(targets=True, expr=True, turn=False, layers=None, normalize=True, save_layers=True,
+                         free=True),
+        "e2e_low1": dict(targets=True, expr=True, turn=False, layers=None, normalize=False, save_layers=True,
+                         free=True),
     }[kind]
     build_models(c, need_angles=want["turn"])
     src, prep = build_input(c, image_name, want["normalize"] and not fake)
@@ -606,7 +644,13 @@ def build_workflow(schemas, kind: str, fake: bool = False, project: str = "my_ch
                 ins[k] = v[2]
         if psd is not None:
             ins["psd_path"] = psd[0]
-        g.add("StandRigSaveReferencePack", {"project": project}, ins, group="save", col=1)
+        pack = g.add("StandRigSaveReferencePack", {"project": project}, ins, group="save", col=1)
+        if want.get("save_layers") and extra is not None:
+            g.add("StandRigSaveLayers", {"project": project, "name": "expressions"}, {"layers": extra},
+                  group="save", col=1, title="Save expression layers for step 2")
+        if want.get("free"):
+            g.note("save", NOTE_LOW_1, col=2)
+            g.add("StandRigFreeMemory", {}, {"after": pack[0]}, group="save", col=2)
     return g
 
 
@@ -617,6 +661,10 @@ WORKFLOWS = {
     "psd": ("standrig_layers_psd_seethrough", "Layered PSD with See-through + expression/viseme variant layers"),
     "psd_sam3": ("standrig_layers_psd_sam3", "Layered PSD with core SAM3 masks only (no extra node pack)"),
     "turnaround": ("standrig_turnaround_sheet", "8-view turnaround sheet with the Multiple-Angles LoRA"),
+    "lowmem_1": ("standrig_lowmem_1_sheets", "Low memory, step 1 of 2: reference sheets + expression layers, "
+                 "then frees memory"),
+    "lowmem_2": ("standrig_lowmem_2_psd", "Low memory, step 2 of 2: See-through (nf4, offload) PSD from step 1's "
+                 "project"),
 }
 
 
@@ -626,11 +674,12 @@ def main():
     ap.add_argument("--out", default=os.path.join(ROOT, "workflows"))
     ap.add_argument("--e2e", help="also write the CPU end-to-end test workflow (API) to this path")
     ap.add_argument("--e2e-image", default="standrig_test_character.png")
+    ap.add_argument("--e2e-low", help="also write the two low-memory CPU test workflows (API) with this path prefix")
     args = ap.parse_args()
     schemas = json.load(open(args.schemas, encoding="utf-8"))
     os.makedirs(os.path.join(args.out, "api"), exist_ok=True)
     for kind, (name, desc) in WORKFLOWS.items():
-        g = build_workflow(schemas, kind)
+        g = build_lowmem_step2(schemas) if kind == "lowmem_2" else build_workflow(schemas, kind)
         ui = g.to_ui()
         ui["extra"]["standrig"] = {"description": desc}
         with open(os.path.join(args.out, f"{name}.json"), "w", encoding="utf-8") as f:
@@ -645,6 +694,13 @@ def main():
         with open(args.e2e.replace(".api.json", ".ui.json"), "w", encoding="utf-8") as f:
             json.dump(g.to_ui(), f, ensure_ascii=False, indent=1)
         print(f"e2e test workflow: {len(g.nodes)} nodes")
+    if args.e2e_low:
+        g1 = build_workflow(schemas, "e2e_low1", fake=True, project="e2e_low", image_name=args.e2e_image)
+        g2 = build_lowmem_step2(schemas, fake=True, project="e2e_low")
+        for suffix, gg in (("1", g1), ("2", g2)):
+            with open(f"{args.e2e_low}{suffix}.api.json", "w", encoding="utf-8") as f:
+                json.dump(gg.to_api(), f, ensure_ascii=False, indent=1)
+        print(f"low-memory e2e workflows: {len(g1.nodes)} + {len(g2.nodes)} nodes")
 
 
 if __name__ == "__main__":

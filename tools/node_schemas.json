@@ -762,7 +762,9 @@
      "COMBO",
      {
       "multiselect": false,
-      "options": [],
+      "options": [
+       "birefnet.safetensors"
+      ],
       "tooltip": "The model used to remove backgrounds from images"
      }
     ]
@@ -1713,6 +1715,37 @@
   "python_module": "custom_nodes.seethrough_stub",
   "search_aliases": []
  },
+ "StandRigFreeMemory": {
+  "category": "StandRig",
+  "description": "",
+  "display_name": "StandRig Free Memory After Run",
+  "has_intermediate_output": false,
+  "input": {
+   "optional": {
+    "after": [
+     "STRING",
+     {
+      "forceInput": true
+     }
+    ]
+   },
+   "required": {}
+  },
+  "input_order": {
+   "optional": [
+    "after"
+   ],
+   "required": []
+  },
+  "is_input_list": false,
+  "name": "StandRigFreeMemory",
+  "output": [],
+  "output_is_list": [],
+  "output_name": [],
+  "output_node": true,
+  "python_module": "custom_nodes.ComfyUI-StandRig-Bridge",
+  "search_aliases": []
+ },
  "StandRigLayersToPSD": {
   "category": "StandRig",
   "description": "",
@@ -1815,6 +1848,54 @@
    "layer_report"
   ],
   "output_node": true,
+  "python_module": "custom_nodes.ComfyUI-StandRig-Bridge",
+  "search_aliases": []
+ },
+ "StandRigLoadProject": {
+  "category": "StandRig",
+  "description": "",
+  "display_name": "StandRig Load Project (step 2)",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "layers_name": [
+     "STRING",
+     {
+      "default": "expressions"
+     }
+    ],
+    "project": [
+     "STRING",
+     {
+      "default": "my_character"
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "project",
+    "layers_name"
+   ]
+  },
+  "is_input_list": false,
+  "name": "StandRigLoadProject",
+  "output": [
+   "IMAGE",
+   "LAYERS",
+   "STRING"
+  ],
+  "output_is_list": [
+   false,
+   false,
+   false
+  ],
+  "output_name": [
+   "source_image",
+   "layers",
+   "info"
+  ],
+  "output_node": false,
   "python_module": "custom_nodes.ComfyUI-StandRig-Bridge",
   "search_aliases": []
  },
@@ -2385,6 +2466,52 @@
    "region_mask_crop"
   ],
   "output_node": false,
+  "python_module": "custom_nodes.ComfyUI-StandRig-Bridge",
+  "search_aliases": []
+ },
+ "StandRigSaveLayers": {
+  "category": "StandRig",
+  "description": "",
+  "display_name": "StandRig Save Layers (for a later run)",
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "layers": [
+     "LAYERS"
+    ],
+    "name": [
+     "STRING",
+     {
+      "default": "expressions"
+     }
+    ],
+    "project": [
+     "STRING",
+     {
+      "default": "my_character"
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "layers",
+    "project",
+    "name"
+   ]
+  },
+  "is_input_list": false,
+  "name": "StandRigSaveLayers",
+  "output": [
+   "STRING"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "folder"
+  ],
+  "output_node": true,
   "python_module": "custom_nodes.ComfyUI-StandRig-Bridge",
   "search_aliases": []
  },

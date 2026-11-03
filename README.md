@@ -64,6 +64,7 @@ and tool versions appear without reinstalling anything. A command-line mode exis
 | `standrig_layers_psd_seethrough.json` | Layered PSD + expression/viseme variant layers | ComfyUI-See-through |
 | `standrig_layers_psd_sam3.json` | Quick layered PSD from core SAM3 masks (does **not** paint hidden areas) | none |
 | `standrig_turnaround_sheet.json` | 8-view turnaround with the Multiple-Angles LoRA | none |
+| `standrig_lowmem_1_sheets.json` → `standrig_lowmem_2_psd.json` | **Low memory (8 GB VRAM / 16 GB RAM)**, two runs with the same `project` name. Step 1: sheets + expression layers with Qwen, then frees memory. Step 2: See-through with nf4 / group offload / 1024 px, PSD with the expression layers, manifest updated. The two big models are never loaded together. | step 2: ComfyUI-See-through |
 
 `workflows/api/*.api.json` are the same graphs in API format, for scripting and `POST /prompt`.
 

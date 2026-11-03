@@ -1,0 +1,191 @@
+{
+ "2": {
+  "class_type": "StandRigLoadProject",
+  "inputs": {
+   "project": "my_character",
+   "layers_name": "expressions"
+  },
+  "_meta": {
+   "title": "Project from step 1 (same name!)"
+  }
+ },
+ "3": {
+  "class_type": "PreviewImage",
+  "inputs": {
+   "images": [
+    "2",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Source canvas from step 1"
+  }
+ },
+ "5": {
+  "class_type": "SeeThrough_LoadLayerDiffModel",
+  "inputs": {
+   "model": "layerdifforg/seethroughv0.0.2_layerdiff3d",
+   "vae_ckpt": "",
+   "unet_ckpt": "",
+   "quant_mode": "nf4",
+   "cache_tag_embeds": true,
+   "group_offload": true,
+   "auto_download": true
+  },
+  "_meta": {
+   "title": "SeeThrough_LoadLayerDiffModel"
+  }
+ },
+ "6": {
+  "class_type": "SeeThrough_LoadDepthModel",
+  "inputs": {
+   "model": "layerdifforg/seethroughv0.0.1_marigold",
+   "quant_mode": "nf4",
+   "cache_tag_embeds": true,
+   "group_offload": true,
+   "auto_download": true
+  },
+  "_meta": {
+   "title": "SeeThrough_LoadDepthModel"
+  }
+ },
+ "7": {
+  "class_type": "SeeThrough_GenerateLayers",
+  "inputs": {
+   "image": [
+    "2",
+    0
+   ],
+   "layerdiff_model": [
+    "5",
+    0
+   ],
+   "seed": 42,
+   "resolution": 1024,
+   "num_inference_steps": 30
+  },
+  "_meta": {
+   "title": "SeeThrough_GenerateLayers"
+  }
+ },
+ "8": {
+  "class_type": "SeeThrough_GenerateDepth",
+  "inputs": {
+   "layers": [
+    "7",
+    0
+   ],
+   "depth_model": [
+    "6",
+    0
+   ],
+   "seed": 42,
+   "resolution_depth": 720
+  },
+  "_meta": {
+   "title": "SeeThrough_GenerateDepth"
+  }
+ },
+ "9": {
+  "class_type": "SeeThrough_PostProcess",
+  "inputs": {
+   "layers_depth": [
+    "8",
+    0
+   ],
+   "tblr_split": true,
+   "use_lama": true
+  },
+  "_meta": {
+   "title": "SeeThrough_PostProcess"
+  }
+ },
+ "10": {
+  "class_type": "SeeThrough_PartsToLayers",
+  "inputs": {
+   "parts": [
+    "9",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "SeeThrough_PartsToLayers"
+  }
+ },
+ "11": {
+  "class_type": "PreviewImage",
+  "inputs": {
+   "images": [
+    "9",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "See-through reconstruction"
+  }
+ },
+ "12": {
+  "class_type": "StandRigLayersToPSD",
+  "inputs": {
+   "layers": [
+    "10",
+    0
+   ],
+   "project": "my_character",
+   "filename": "character",
+   "fit_mode": "auto",
+   "rename_parts": true,
+   "min_alpha_pixels": 16,
+   "source_image": [
+    "2",
+    0
+   ],
+   "extra_layers": [
+    "2",
+    1
+   ],
+   "add_reference_layer": false
+  },
+  "_meta": {
+   "title": "StandRigLayersToPSD"
+  }
+ },
+ "13": {
+  "class_type": "PreviewImage",
+  "inputs": {
+   "images": [
+    "12",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "PSD composite check"
+  }
+ },
+ "14": {
+  "class_type": "StandRigSaveReferencePack",
+  "inputs": {
+   "project": "my_character",
+   "psd_path": [
+    "12",
+    0
+   ],
+   "notes": ""
+  },
+  "_meta": {
+   "title": "StandRigSaveReferencePack"
+  }
+ },
+ "15": {
+  "class_type": "StandRigFreeMemory",
+  "inputs": {
+   "after": [
+    "14",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "StandRigFreeMemory"
+  }
+ }
+}

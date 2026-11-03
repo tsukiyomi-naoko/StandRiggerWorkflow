@@ -1,10 +1,10 @@
 {
   "catalog_version": 1,
   "installer": {
-    "version": "2.1.2",
+    "version": "2.2.0",
     "script_url": "https://raw.githubusercontent.com/tsukiyomi-naoko/StandRiggerWorkflow/main/installer/standrig_setup.py",
     "release_page": "https://github.com/tsukiyomi-naoko/StandRiggerWorkflow/releases",
-    "notes": "Workflows now name the INT8 Qwen model by default (no more 38 GB BF16 prompt); switching variants also switches the download link inside the workflows."
+    "notes": "Low-memory two-step workflows (8 GB VRAM / 16 GB RAM); workflows list them in the Workflows tab."
   },
   "comfyui": {
     "required_core_files": [
@@ -155,6 +155,34 @@
     "standrig-visual-reference-v1 manifest with hashes, panel order, pose extremes and prompts"
   ],
   "workflow_list": [
+    {
+      "file": "standrig_lowmem_1_sheets.json",
+      "name": "Low memory · step 1: sheets + expressions",
+      "description": "For 8 GB VRAM / 16 GB RAM. Reference sheets and expression layers with Qwen, saved into the project, then frees memory. Run step 2 next with the same project name.",
+      "outputs": "face/body/connection/expression sheets, expression layers, reference-manifest.json",
+      "plugins": [
+        "standrig-bridge"
+      ],
+      "models": [
+        "qwen_edit",
+        "qwen-te",
+        "qwen-vae",
+        "lightning",
+        "sam3",
+        "birefnet"
+      ]
+    },
+    {
+      "file": "standrig_lowmem_2_psd.json",
+      "name": "Low memory · step 2: See-through PSD",
+      "description": "Loads step 1's project (same name), runs See-through with nf4 / offload / 1024 px, writes character.psd with the expression layers and updates the manifest.",
+      "outputs": "character.psd, updated reference-manifest.json",
+      "plugins": [
+        "standrig-bridge",
+        "see-through"
+      ],
+      "models": []
+    },
     {
       "file": "standrig_full_pipeline.json",
       "name": "Full pipeline (recommended)",

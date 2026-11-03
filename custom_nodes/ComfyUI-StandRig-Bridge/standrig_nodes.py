@@ -972,10 +972,25 @@ class StandRigSaveReferencePack:
                           "sourceImage": source_info, "notes": notes or None,
                           "directionConvention": "min/max directions are described from the viewer's point of view in each panel's 'direction'."},
         }
-        missing = [k for k, d in (("face", face_sheet), ("body", body_sheet), ("connections", connection_sheet)) if not d]
+        mp = os.path.join(ref_dir, "reference-manifest.json")
+        old = None
+        if os.path.isfile(mp):  # a previous step of the same project: keep what this run didn't produce
+            try:
+                with open(mp, "r", encoding="utf-8") as f:
+                    old = json.load(f)
+            except Exception:
+                old = None
+        if old:
+            have = {e["id"] for e in sheets_out}
+            manifest["sheets"] = [e for e in old.get("sheets", []) if e.get("id") not in have] + sheets_out
+            if not psd_path and old.get("source"):
+                manifest["source"] = old["source"]
+            if source_info is None:
+                manifest["generator"]["sourceImage"] = (old.get("generator") or {}).get("sourceImage")
+        ids = {e["id"] for e in manifest["sheets"]}
+        missing = [k for k in ("face", "body", "connections") if k not in ids]
         if missing:
             manifest["generator"]["missingRequiredSheets"] = missing
-        mp = os.path.join(ref_dir, "reference-manifest.json")
         with open(mp, "w", encoding="utf-8") as f:
             json.dump(manifest, f, ensure_ascii=False, indent=2)
         print(f"[StandRig] reference pack saved: {mp}")
@@ -1018,6 +1033,126 @@ def pin_manifest(manifest_path: str, standrig_url: str) -> str:
     return f"pinned revision {c['revision']}"
 
 
+# ============================================== 9. two-step (low memory) helpers
+
+
+def _project_dir(project: str, *parts: str) -> str:
+    return _output_dir("standrig", project, *parts)
+
+
+class StandRigSaveLayers:
+    """Save a LAYERS document (e.g. expression variants) into the project so a
+    later, separate run can add it to the PSD (StandRig Load Project)."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {"layers": ("LAYERS",), "project": ("STRING", {"default": "my_character"}),
+                             "name": ("STRING", {"default": "expressions"})}}
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("folder",)
+    OUTPUT_NODE = True
+    FUNCTION = "run"
+    CATEGORY = CATEGORY
+
+    def run(self, layers, project, name):
+        d = _project_dir(project, "layers", name)
+        for f in os.listdir(d):
+            if f.endswith(".png") or f == "layers.json":
+                os.remove(os.path.join(d, f))
+        items = []
+        for i, it in enumerate(_doc_items(layers)):
+            fn = f"{i:03d}.png"
+            Image.fromarray(_item_rgba(it), "RGBA").save(os.path.join(d, fn))
+            items.append({"file": fn, "name": it.get("name"), "x": int(it.get("x", 0)), "y": int(it.get("y", 0)),
+                          "z_index": int(it.get("z_index", i)), "visible": bool(it.get("visible", True)),
+                          "opacity": float(it.get("opacity", 1.0))})
+        canvas = (layers or {}).get("canvas")
+        with open(os.path.join(d, "layers.json"), "w", encoding="utf-8") as f:
+            json.dump({"canvas": list(canvas) if canvas else None, "layers": items}, f, indent=2, ensure_ascii=False)
+        print(f"[StandRig] saved {len(items)} layers to {d}")
+        return {"ui": {"text": [d]}, "result": (d,)}
+
+
+class StandRigLoadProject:
+    """Load what an earlier run saved for this project: the exact source canvas
+    (references/source.png) and saved layers (expression variants). Used by
+    the low-memory step 2 so it lines up perfectly with step 1."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {"project": ("STRING", {"default": "my_character"}),
+                             "layers_name": ("STRING", {"default": "expressions"})}}
+
+    RETURN_TYPES = ("IMAGE", "LAYERS", "STRING")
+    RETURN_NAMES = ("source_image", "layers", "info")
+    FUNCTION = "run"
+    CATEGORY = CATEGORY
+
+    @classmethod
+    def IS_CHANGED(cls, project, layers_name):
+        d = _project_dir(project)
+        stamp = []
+        for rel in (os.path.join("references", "source.png"), os.path.join("layers", layers_name, "layers.json")):
+            fp = os.path.join(d, rel)
+            stamp.append(os.path.getmtime(fp) if os.path.exists(fp) else 0)
+        return str(stamp)
+
+    def run(self, project, layers_name):
+        d = _project_dir(project)
+        src = os.path.join(d, "references", "source.png")
+        if not os.path.isfile(src):
+            raise RuntimeError(f"{src} not found. Run step 1 (low-memory sheets & expressions) with the same "
+                               f"project name '{project}' first.")
+        img = _np2t(np.asarray(Image.open(src).convert("RGB")))
+        ld = os.path.join(d, "layers", layers_name)
+        meta_p = os.path.join(ld, "layers.json")
+        items = []
+        canvas = (img.shape[2], img.shape[1])
+        if os.path.isfile(meta_p):
+            with open(meta_p, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+            if meta.get("canvas"):
+                canvas = tuple(meta["canvas"])
+            for it in meta.get("layers", []):
+                a = np.asarray(Image.open(os.path.join(ld, it["file"])).convert("RGBA"), np.float32) / 255.0
+                items.append({"image": torch.from_numpy(a).unsqueeze(0), "type": "raster", "name": it.get("name"),
+                              "x": it.get("x", 0), "y": it.get("y", 0), "z_index": it.get("z_index", 0),
+                              "visible": it.get("visible", True), "opacity": it.get("opacity", 1.0)})
+            info = f"source {canvas[0]}x{canvas[1]}, {len(items)} saved layers"
+        else:
+            info = f"source {canvas[0]}x{canvas[1]}, no saved layers in {ld} (PSD will have no expression variants)"
+        print(f"[StandRig] project '{project}': {info}")
+        return (img, {"version": 1, "canvas": canvas, "layers": items}, info)
+
+
+class StandRigFreeMemory:
+    """Ask ComfyUI to unload all models and clear its cache when this run ends,
+    so the next workflow starts with free RAM/VRAM (same as the Unload Models
+    command). Connect any output to make it run at the end."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {}, "optional": {"after": ("STRING", {"forceInput": True})}}
+
+    RETURN_TYPES = ()
+    OUTPUT_NODE = True
+    FUNCTION = "run"
+    CATEGORY = CATEGORY
+
+    def run(self, after=None):
+        try:
+            import server  # type: ignore
+            q = server.PromptServer.instance.prompt_queue
+            q.set_flag("unload_models", True)
+            q.set_flag("free_memory", True)
+            msg = "Models will be unloaded and memory freed when this run finishes."
+        except Exception as e:  # not inside ComfyUI
+            msg = f"could not request memory release: {e}"
+        print(f"[StandRig] {msg}")
+        return {"ui": {"text": [msg]}}
+
+
 NODE_CLASS_MAPPINGS = {
     "StandRigPrepareCanvas": StandRigPrepareCanvas,
     "StandRigRegionCrop": StandRigRegionCrop,
@@ -1029,6 +1164,9 @@ NODE_CLASS_MAPPINGS = {
     "StandRigLayersToPSD": StandRigLayersToPSD,
     "StandRigSaveReferencePack": StandRigSaveReferencePack,
     "StandRigPinManifest": StandRigPinManifest,
+    "StandRigSaveLayers": StandRigSaveLayers,
+    "StandRigLoadProject": StandRigLoadProject,
+    "StandRigFreeMemory": StandRigFreeMemory,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -1042,4 +1180,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "StandRigLayersToPSD": "StandRig Layers To PSD",
     "StandRigSaveReferencePack": "StandRig Save Reference Pack + Manifest",
     "StandRigPinManifest": "StandRig Pin Manifest (after import)",
+    "StandRigSaveLayers": "StandRig Save Layers (for a later run)",
+    "StandRigLoadProject": "StandRig Load Project (step 2)",
+    "StandRigFreeMemory": "StandRig Free Memory After Run",
 }
